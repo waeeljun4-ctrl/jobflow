@@ -30,6 +30,7 @@ class UserPermissionController extends Controller
      */
     private const ACTION_PERMISSIONS = [
         ['name' => 'order.complete', 'label' => 'تحديد الطلبية كمكتملة'],
+        ['name' => 'order.edit', 'label' => 'تعديل الطلبية'],
     ];
 
     public function edit(User $user)

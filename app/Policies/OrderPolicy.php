@@ -13,10 +13,16 @@ class OrderPolicy
      * act on right now — either already claimed and in progress, or sitting
      * available/unclaimed and assignable to them (so they can double-check
      * specs before pressing "بدء العمل", not just mid-task). Once that stage
-     * is done, edit access closes again. Admins bypass this via Gate::before.
+     * is done, edit access closes again — unless the admin granted the
+     * standing "order.edit" permission, which works regardless of stage.
+     * Admins bypass this entirely via Gate::before.
      */
     public function edit(User $user, Order $order): bool
     {
+        if ($user->hasPermissionTo('order.edit')) {
+            return true;
+        }
+
         return $order->stageInstances()
             ->whereIn('status', [StageStatus::Available->value, StageStatus::InProgress->value])
             ->where(fn ($q) => $q->whereNull('assigned_to')->orWhere('assigned_to', $user->id))
