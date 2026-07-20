@@ -150,3 +150,4 @@ Route::middleware('auth')->prefix('my')->name('my.')->group(function () {
 Route::middleware('auth')->get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');
 Route::middleware('auth')->get('/orders/{order}/edit', [OrderController::class, 'edit'])->name('orders.edit');
 Route::middleware('auth')->put('/orders/{order}', [OrderController::class, 'update'])->name('orders.update');
+Route::middleware('auth')->put('/orders/{order}/stages', [OrderController::class, 'updateStages'])->name('orders.updateStages');

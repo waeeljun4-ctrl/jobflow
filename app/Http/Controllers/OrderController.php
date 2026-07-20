@@ -4,7 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Order;
 use App\Models\SpecField;
+use App\Models\StageDefinition;
+use App\Models\User;
 use App\Services\ImageCompressionService;
+use App\Services\WorkflowService;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Gate;
@@ -59,9 +62,23 @@ class OrderController extends Controller
 
         $order->load('specValues');
 
+        $stageOptions = StageDefinition::where('is_active', true)
+            ->where('is_conditional', true)
+            ->orderBy('sort_order')
+            ->get()
+            ->map(fn (StageDefinition $stage) => [
+                'id' => $stage->id,
+                'name_ar' => $stage->name_ar,
+                'workers' => User::permission($stage->permissionName())->orderBy('name')->get(['id', 'name']),
+            ])->values();
+
+        $stageInstances = $order->stageInstances()->orderBy('id')->get(['id', 'stage_definition_id', 'status', 'assigned_to']);
+
         return Inertia::render('Orders/Edit', [
             'order' => $order,
             'specFields' => SpecField::where('is_active', true)->orderBy('sort_order')->get(),
+            'stageOptions' => $stageOptions,
+            'stageInstances' => $stageInstances,
         ]);
     }
 
@@ -123,5 +140,33 @@ class OrderController extends Controller
         }
 
         return redirect()->route('orders.show', $order)->with('success', 'تم تحديث بيانات الطلبية.');
+    }
+
+    /**
+     * Lets whoever can edit this order change which stages it actually
+     * needs (not every order needs installation, some already have a ready
+     * design file) and who specifically should work each one — separate
+     * from update() since it mutates the workflow graph, not plain fields.
+     */
+    public function updateStages(Request $request, Order $order, WorkflowService $workflow)
+    {
+        Gate::authorize('edit', $order);
+
+        $data = $request->validate([
+            'stage_definition_ids' => 'required|array|min:1',
+            'stage_definition_ids.*' => 'exists:stage_definitions,id',
+            'stage_assignments' => 'nullable|array',
+            'stage_assignments.*' => 'nullable|integer|exists:users,id',
+        ]);
+
+        $workflow->assertAssignmentsEligible($data['stage_assignments'] ?? []);
+
+        try {
+            $workflow->syncStages($order, $data['stage_definition_ids'], $data['stage_assignments'] ?? [], $request->user());
+        } catch (\InvalidArgumentException $e) {
+            return back()->withErrors(['stage_definition_ids' => $e->getMessage()]);
+        }
+
+        return redirect()->route('orders.show', $order)->with('success', 'تم تحديث مراحل العمل.');
     }
 }

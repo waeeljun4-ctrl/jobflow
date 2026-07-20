@@ -12,7 +12,8 @@ export default function Create({ conditionalStages, specFields }) {
         customer_address: '',
         notes: '',
         due_date: '',
-        stage_definition_ids: [],
+        stage_definition_ids: conditionalStages.filter(s => s.default_selected).map(s => s.id),
+        stage_assignments: {},
         specs: {},
         price: '',
         deposit_amount: '',
@@ -26,9 +27,19 @@ export default function Create({ conditionalStages, specFields }) {
     const quoteTotal = quoteItemsGrandTotal(data.quote_items);
 
     function toggleStage(id) {
-        setData('stage_definition_ids', data.stage_definition_ids.includes(id)
-            ? data.stage_definition_ids.filter(w => w !== id)
-            : [...data.stage_definition_ids, id]);
+        if (data.stage_definition_ids.includes(id)) {
+            setData({
+                ...data,
+                stage_definition_ids: data.stage_definition_ids.filter(w => w !== id),
+                stage_assignments: { ...data.stage_assignments, [id]: '' },
+            });
+        } else {
+            setData('stage_definition_ids', [...data.stage_definition_ids, id]);
+        }
+    }
+
+    function assignStage(id, userId) {
+        setData('stage_assignments', { ...data.stage_assignments, [id]: userId });
     }
 
     function setSpec(fieldId, value) {
@@ -179,14 +190,30 @@ export default function Create({ conditionalStages, specFields }) {
                 <div className="bg-white rounded-2xl border border-cream-3 p-5">
                     <p className="font-bold text-ink text-sm mb-3">نوع العمل المطلوب</p>
                     {errors.stage_definition_ids && <p className="text-red-500 text-xs mb-2">{errors.stage_definition_ids}</p>}
+                    {errors.stage_assignments && <p className="text-red-500 text-xs mb-2">{errors.stage_assignments}</p>}
                     <div className="flex flex-wrap gap-3">
-                        {conditionalStages.map(stage => (
-                            <label key={stage.id} className="flex items-center gap-2 cursor-pointer bg-cream px-3 py-2 rounded-xl border-2 border-cream-3 has-[:checked]:border-primary">
-                                <input type="checkbox" checked={data.stage_definition_ids.includes(stage.id)}
-                                    onChange={() => toggleStage(stage.id)} className="accent-primary w-4 h-4" />
-                                <span className="text-sm text-ink">{stage.name_ar}</span>
-                            </label>
-                        ))}
+                        {conditionalStages.map(stage => {
+                            const checked = data.stage_definition_ids.includes(stage.id);
+                            return (
+                                <div key={stage.id} className={`px-3 py-2 rounded-xl border-2 ${checked ? 'border-primary bg-primary-pale' : 'border-cream-3 bg-cream'}`}>
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input type="checkbox" checked={checked}
+                                            onChange={() => toggleStage(stage.id)} className="accent-primary w-4 h-4" />
+                                        <span className="text-sm text-ink">{stage.name_ar}</span>
+                                    </label>
+                                    {checked && stage.workers.length > 0 && (
+                                        <select value={data.stage_assignments[stage.id] ?? ''}
+                                            onChange={e => assignStage(stage.id, e.target.value)}
+                                            className="mt-2 w-full px-2 py-1.5 border-2 border-cream-3 rounded-lg text-xs focus:border-primary outline-none bg-white">
+                                            <option value="">عيّن لعامل محدد (اختياري)</option>
+                                            {stage.workers.map(worker => (
+                                                <option key={worker.id} value={worker.id}>{worker.name}</option>
+                                            ))}
+                                        </select>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
 

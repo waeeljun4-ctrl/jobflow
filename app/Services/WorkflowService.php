@@ -9,12 +9,46 @@ use App\Models\StageInstance;
 use App\Models\StageTransition;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
 class WorkflowService
 {
     public function __construct(private NotificationService $notifications)
     {
+    }
+
+    /**
+     * Guards every entry point that lets an admin pre-assign a stage to a
+     * specific worker (intake form, order-edit stage editor) — a tampered
+     * request must never be able to hand a task to someone who doesn't
+     * actually hold that stage's permission.
+     *
+     * @param  array<int, int|null>  $assignments  stage_definition_id => user_id
+     *
+     * @throws ValidationException
+     */
+    public function assertAssignmentsEligible(array $assignments): void
+    {
+        if (empty($assignments)) {
+            return;
+        }
+
+        $definitions = StageDefinition::whereIn('id', array_keys($assignments))->get()->keyBy('id');
+        $users = User::whereIn('id', array_filter(array_values($assignments)))->get()->keyBy('id');
+
+        foreach ($assignments as $stageDefinitionId => $userId) {
+            if (empty($userId)) {
+                continue;
+            }
+
+            $definition = $definitions->get($stageDefinitionId);
+            $user = $users->get($userId);
+
+            if (! $definition || ! $user || ! $user->hasPermissionTo($definition->permissionName())) {
+                throw ValidationException::withMessages(['stage_assignments' => 'العامل المحدد لا يملك صلاحية هذه المرحلة.']);
+            }
+        }
     }
 
     /**
@@ -26,10 +60,13 @@ class WorkflowService
      * Each level depends on the nearest lower level that actually produced
      * instances for this order — conditional stages nobody selected leave
      * no gap, since dependents attach to whatever level came before them.
+     *
+     * @param  array<int, int|null>  $assignments  stage_definition_id => user_id, for stages the
+     *                                              admin pre-assigned to a specific worker at intake.
      */
-    public function initializeStages(Order $order, User $creator): void
+    public function initializeStages(Order $order, User $creator, array $assignments = []): void
     {
-        DB::transaction(function () use ($order, $creator) {
+        DB::transaction(function () use ($order, $creator, $assignments) {
             $intakeDefinition = StageDefinition::where('is_intake', true)->firstOrFail();
 
             $intake = StageInstance::create([
@@ -68,6 +105,7 @@ class WorkflowService
                         // New orders queue at the back of that stage's list;
                         // the admin can drag-reorder for priority afterward.
                         'queue_order' => (int) StageInstance::where('stage_definition_id', $definition->id)->max('queue_order') + 1,
+                        'assigned_to' => $assignments[$definition->id] ?? null,
                     ]);
 
                     $instance->dependsOn()->attach($previousLevelInstances->pluck('id'));
@@ -89,6 +127,126 @@ class WorkflowService
                     ['type' => 'stage_available', 'stage_instance_id' => $next->id, 'order_id' => $order->id]
                 );
             }
+        });
+    }
+
+    /**
+     * Reconciles an order's stages with a fresh set of desired stage
+     * definition IDs and per-stage worker assignments, chosen from the
+     * order-edit screen — orders don't all need the same work (some skip
+     * installation entirely, some already have a ready design file).
+     *
+     * Stages already started or finished are untouchable: both their
+     * existence and their dependency history are preserved exactly. Only
+     * stages that haven't been claimed yet (Locked/Available) are added,
+     * removed, or reassigned. After reconciling which stages exist, the
+     * not-yet-started portion of the dependency graph is rebuilt from the
+     * current level structure and re-evaluated from scratch, so a gap left
+     * by a removed stage (or one newly filled) resolves exactly like a
+     * fresh order would.
+     *
+     * @param  array<int>  $desiredStageDefinitionIds
+     * @param  array<int, int|null>  $assignments  stage_definition_id => user_id
+     * @return array<int, StageInstance> stages that just flipped locked -> available
+     */
+    public function syncStages(Order $order, array $desiredStageDefinitionIds, array $assignments, User $actor): array
+    {
+        return DB::transaction(function () use ($order, $desiredStageDefinitionIds, $assignments, $actor) {
+            // The intake stage is never a real selection (auto-created,
+            // auto-completed) — strip it out regardless of what the caller
+            // sent, so it can never end up duplicated or removed here.
+            $desiredStageDefinitionIds = StageDefinition::whereIn('id', $desiredStageDefinitionIds)
+                ->where('is_intake', false)
+                ->pluck('id')
+                ->all();
+
+            $order->stageDefinitions()->sync($desiredStageDefinitionIds);
+
+            // The intake stage is auto-created and auto-completed outside
+            // this selection entirely — it never appears in $desiredStageDefinitionIds
+            // and must never be treated as something the admin "removed".
+            $instances = $order->stageInstances()->with('stageDefinition')->get()
+                ->reject(fn ($i) => $i->stageDefinition->is_intake);
+
+            $lockedIn = $instances->whereIn('status', [StageStatus::InProgress->value, StageStatus::Done->value]);
+            $pending = $instances->whereIn('status', [StageStatus::Locked->value, StageStatus::Available->value]);
+
+            foreach ($lockedIn as $instance) {
+                if (! in_array($instance->stage_definition_id, $desiredStageDefinitionIds, true)) {
+                    throw new InvalidArgumentException('لا يمكن إلغاء مرحلة بدأ أو انتهى العمل عليها: '.$instance->stageDefinition->name_ar);
+                }
+            }
+
+            // Drop pending stages the admin unchecked.
+            $toRemove = $pending->reject(fn ($i) => in_array($i->stage_definition_id, $desiredStageDefinitionIds, true));
+            foreach ($toRemove as $instance) {
+                $instance->delete();
+            }
+
+            $stillPending = $pending->reject(fn ($i) => $toRemove->contains('id', $i->id));
+
+            // Add newly-checked stages that don't have an instance yet.
+            $existingDefinitionIds = $lockedIn->pluck('stage_definition_id')
+                ->merge($stillPending->pluck('stage_definition_id'))
+                ->all();
+
+            $newDefinitions = StageDefinition::whereIn('id', $desiredStageDefinitionIds)
+                ->whereNotIn('id', $existingDefinitionIds)
+                ->get();
+
+            $created = collect();
+            foreach ($newDefinitions as $definition) {
+                $created->push(StageInstance::create([
+                    'order_id' => $order->id,
+                    'stage_definition_id' => $definition->id,
+                    'status' => StageStatus::Locked->value,
+                    'queue_order' => (int) StageInstance::where('stage_definition_id', $definition->id)->max('queue_order') + 1,
+                ]));
+            }
+
+            $allPending = $stillPending->merge($created);
+
+            // Rebuild dependency edges for the not-yet-started portion only —
+            // locked-in stages keep their original history untouched.
+            $allPending->each(fn ($i) => $i->dependsOn()->sync([]));
+
+            $levels = $order->stageInstances()->with('stageDefinition')->get()
+                ->groupBy(fn ($i) => $i->stageDefinition->sort_order)
+                ->sortKeys();
+
+            $previousLevelInstances = collect();
+            foreach ($levels as $levelInstances) {
+                foreach ($levelInstances as $instance) {
+                    if ($allPending->contains('id', $instance->id)) {
+                        $instance->dependsOn()->sync($previousLevelInstances->pluck('id'));
+                    }
+                }
+                $previousLevelInstances = $levelInstances;
+            }
+
+            // Reset every not-yet-started stage to Locked (and apply the
+            // latest assignment choice), then let the normal availability
+            // sweep flip whatever now genuinely qualifies.
+            foreach ($allPending as $instance) {
+                $instance->update([
+                    'status' => StageStatus::Locked->value,
+                    'assigned_to' => $assignments[$instance->stage_definition_id] ?? null,
+                ]);
+            }
+
+            $newlyAvailable = $this->recomputeAvailability($order);
+            $this->refreshOrderStatusCache($order);
+
+            foreach ($newlyAvailable as $next) {
+                $this->notifications->notifyStageEligibleUsers(
+                    $next,
+                    '🔔 مرحلة جديدة جاهزة',
+                    "{$actor->name} حدّث مراحل طلبية {$order->order_number} — دورك الآن ({$next->stageDefinition->name_ar}).",
+                    ['type' => 'stage_available', 'stage_instance_id' => $next->id, 'order_id' => $order->id]
+                );
+            }
+
+            return $newlyAvailable;
         });
     }
 

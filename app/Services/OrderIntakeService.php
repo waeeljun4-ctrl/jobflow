@@ -26,7 +26,7 @@ class OrderIntakeService
      * controller and the mobile API so intake behaves identically from both
      * clients.
      *
-     * @param  array{customer_name:string,customer_phone:string,customer_address:?string,notes:?string,due_date:?string,stage_definition_ids:array<int>,specs:array<int,string>,quote_items:?array,send_to_design:?bool}  $data
+     * @param  array{customer_name:string,customer_phone:string,customer_address:?string,notes:?string,due_date:?string,stage_definition_ids:array<int>,stage_assignments:?array<int,int|null>,specs:array<int,string>,quote_items:?array,send_to_design:?bool}  $data
      */
     public function create(array $data, User $creator): Order
     {
@@ -103,7 +103,7 @@ class OrderIntakeService
             // above so the graph can be built later, unchanged, once the
             // admin releases them from the "pending approval" list.
             if (! $hold) {
-                $this->workflow->initializeStages($order, $creator);
+                $this->workflow->initializeStages($order, $creator, $data['stage_assignments'] ?? []);
             }
 
             return $order;
