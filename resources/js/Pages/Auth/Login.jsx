@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Head, useForm } from '@inertiajs/react';
 
 export default function Login() {
@@ -6,6 +7,14 @@ export default function Login() {
         password: '',
         remember: false,
     });
+    const [sessionExpired, setSessionExpired] = useState(false);
+
+    useEffect(() => {
+        if (sessionStorage.getItem('sessionExpired')) {
+            sessionStorage.removeItem('sessionExpired');
+            setSessionExpired(true);
+        }
+    }, []);
 
     function submit(e) {
         e.preventDefault();
@@ -23,6 +32,12 @@ export default function Login() {
                         </h1>
                         <p className="text-xs text-muted mt-1 tracking-widest">نظام إدارة الإنتاج</p>
                     </div>
+
+                    {sessionExpired && (
+                        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5 mb-4 text-center leading-relaxed">
+                            انتهت جلستك، رجاءً سجل دخول من جديد
+                        </p>
+                    )}
 
                     <form onSubmit={submit} className="space-y-4">
                         <div>
