@@ -114,7 +114,7 @@ export default function Edit({ order, specFields, stageOptions, stageInstances }
                 </div>
 
                 <div className="bg-white rounded-2xl border border-cream-3 p-5">
-                    <p className="font-bold text-ink text-sm mb-3">مواصفات القرمة</p>
+                    <p className="font-bold text-ink text-sm mb-3">مواصفات القارمة</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {specFields.map(field => (
                             <SpecInput key={field.id} field={field} value={data.specs[field.id] ?? ''}

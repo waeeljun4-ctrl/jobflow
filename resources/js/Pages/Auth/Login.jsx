@@ -8,6 +8,7 @@ export default function Login() {
         remember: false,
     });
     const [sessionExpired, setSessionExpired] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     useEffect(() => {
         if (sessionStorage.getItem('sessionExpired')) {
@@ -57,15 +58,22 @@ export default function Login() {
 
                         <div>
                             <label className="text-xs font-bold tracking-widest uppercase text-muted block mb-1.5">كلمة المرور</label>
-                            <input
-                                type="password"
-                                value={data.password}
-                                onChange={e => setData('password', e.target.value)}
-                                className={`w-full px-4 py-3 border-2 rounded-xl text-sm text-ink bg-cream outline-none transition-colors font-cairo
-                                    ${errors.password ? 'border-red-400' : 'border-cream-3 focus:border-primary'}`}
-                                placeholder="••••••••"
-                                autoComplete="current-password"
-                            />
+                            <div className="relative">
+                                <input
+                                    type={showPassword ? 'text' : 'password'}
+                                    value={data.password}
+                                    onChange={e => setData('password', e.target.value)}
+                                    className={`w-full px-4 py-3 pl-11 border-2 rounded-xl text-sm text-ink bg-cream outline-none transition-colors font-cairo
+                                        ${errors.password ? 'border-red-400' : 'border-cream-3 focus:border-primary'}`}
+                                    placeholder="••••••••"
+                                    autoComplete="current-password"
+                                />
+                                <button type="button" onClick={() => setShowPassword(v => !v)}
+                                    aria-label={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
+                                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted hover:text-ink transition-colors">
+                                    {showPassword ? '🙈' : '👁️'}
+                                </button>
+                            </div>
                             {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
                         </div>
 

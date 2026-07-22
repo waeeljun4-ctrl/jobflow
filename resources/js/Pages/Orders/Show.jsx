@@ -122,7 +122,7 @@ export default function Show({ order, stages, canEdit }) {
                     </div>
 
                     <div className="bg-white rounded-2xl border border-cream-3 p-5">
-                        <p className="font-bold text-ink text-sm mb-3">مواصفات القرمة</p>
+                        <p className="font-bold text-ink text-sm mb-3">مواصفات القارمة</p>
                         <dl className="grid grid-cols-2 gap-3 text-sm">
                             {order.spec_values.map(sv => (
                                 <div key={sv.id}>
