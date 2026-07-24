@@ -8,6 +8,7 @@ import {
     SortableContext, verticalListSortingStrategy, useSortable, arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { useConfirm } from '@/Components/useConfirm';
 
 function computeSortOrders(items, parallelWithPrev) {
     let level = 10;
@@ -31,6 +32,7 @@ export default function Stages({ stages: initialStages }) {
     const intake = initialStages.find(s => s.is_intake);
     const [items, setItems] = useState(() => initialStages.filter(s => !s.is_intake));
     const [parallelWithPrev, setParallelWithPrev] = useState(() => derivedParallelSet(items));
+    const { confirmAction, dialog } = useConfirm();
 
     useEffect(() => {
         const fresh = initialStages.filter(s => !s.is_intake);
@@ -104,14 +106,14 @@ export default function Stages({ stages: initialStages }) {
     }
 
     function destroy(stage) {
-        if (confirm(`حذف "${stage.name_ar}"؟`)) {
-            router.delete(`/admin/stages/${stage.id}`, { preserveScroll: true });
-        }
+        confirmAction(`حذف "${stage.name_ar}"؟`,
+            (cb) => router.delete(`/admin/stages/${stage.id}`, { preserveScroll: true, ...cb }));
     }
 
     return (
         <AdminLayout title="المراحل والأعمال">
             <Head title="المراحل والأعمال" />
+            {dialog}
 
             <p className="text-sm text-muted mb-4 max-w-2xl">
                 اسحب أي مرحلة من المقبض ⠿ لترتيبها. المراحل المرتبطة ببعضها (زر "🔗 متوازية مع السابقة") تعمل بنفس الوقت — مثل قص CNC وفريم الحديد اللذين يتمّان معاً بعد التصميم.

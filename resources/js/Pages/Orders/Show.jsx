@@ -2,6 +2,7 @@ import { Head, Link, usePage, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import WorkerLayout from '@/Layouts/WorkerLayout';
 import CopyButton from '@/Components/CopyButton';
+import { useConfirm } from '@/Components/useConfirm';
 
 const statusStyles = {
     locked: 'bg-gray-100 text-gray-400 border-gray-200',
@@ -28,20 +29,27 @@ export default function Show({ order, stages, canEdit }) {
     const isAdmin = auth?.user?.role === 'admin';
     const canComplete = isAdmin || (auth?.permissions ?? []).includes('order.complete');
     const Layout = isAdmin ? AdminLayout : WorkerLayout;
+    const { confirmAction, dialog } = useConfirm();
 
     function release() {
-        if (! confirm(`إرسال الطلبية ${order.order_number} للتصميم؟`)) return;
-        router.post(`/admin/orders/${order.id}/release`);
+        confirmAction(`إرسال الطلبية ${order.order_number} للتصميم؟`,
+            (cb) => router.post(`/admin/orders/${order.id}/release`, {}, cb));
     }
 
     function markCompleted() {
-        if (! confirm(`تحديد الطلبية ${order.order_number} كمكتملة رح يقفل كل مراحل العمل المتبقية عليها تلقائياً — حتى المراحل يلي ما بلشت لسا. متأكد إنك بدك تكمل؟`)) return;
-        router.post(`/admin/orders/${order.id}/complete`);
+        confirmAction(`تحديد الطلبية ${order.order_number} كمكتملة رح يقفل كل مراحل العمل المتبقية عليها تلقائياً — حتى المراحل يلي ما بلشت لسا. متأكد إنك بدك تكمل؟`,
+            (cb) => router.post(`/admin/orders/${order.id}/complete`, {}, cb));
+    }
+
+    function completeStage(stage) {
+        confirmAction(`تحديد مرحلة "${stage.stage_definition?.name_ar}" كمنتهية؟`,
+            (cb) => router.post(`/my/tasks/${stage.id}/complete`, {}, cb));
     }
 
     return (
         <Layout title={`الطلبية ${order.order_number}`}>
             <Head title={order.order_number} />
+            {dialog}
 
             <div className="flex items-center gap-2 mb-4 max-w-4xl">
                 <span className="text-sm text-muted">اسم الملف:</span>
@@ -115,7 +123,15 @@ export default function Show({ order, stages, canEdit }) {
                                             </p>
                                         )}
                                     </div>
-                                    <span className="text-xs font-bold shrink-0">{statusLabels[stage.status]}</span>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        {isAdmin && (stage.status === 'available' || stage.status === 'in_progress') && (
+                                            <button onClick={() => completeStage(stage)}
+                                                className="bg-green-600 text-white px-2.5 py-1 rounded-lg text-xs font-bold hover:bg-green-700 transition-colors">
+                                                ✅ إنهاء
+                                            </button>
+                                        )}
+                                        <span className="text-xs font-bold">{statusLabels[stage.status]}</span>
+                                    </div>
                                 </div>
                             ))}
                         </div>

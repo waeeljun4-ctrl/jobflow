@@ -1,15 +1,18 @@
 import { Head, Link, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { useConfirm } from '@/Components/useConfirm';
 
 export default function QuotesIndex({ quotes }) {
+    const { confirmAction, dialog } = useConfirm();
+
     function destroy(id) {
-        if (! confirm('حذف عرض السعر هذا؟')) return;
-        router.delete(`/admin/quotes/${id}`);
+        confirmAction('حذف عرض السعر هذا؟', (cb) => router.delete(`/admin/quotes/${id}`, cb));
     }
 
     return (
         <AdminLayout title="عروض الأسعار">
             <Head title="عروض الأسعار" />
+            {dialog}
 
             <div className="mb-4 flex justify-end">
                 <Link href="/admin/quotes/create" className="bg-ink text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-primary transition-colors">

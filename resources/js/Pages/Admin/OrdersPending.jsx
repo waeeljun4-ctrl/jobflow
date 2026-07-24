@@ -1,15 +1,19 @@
 import { Head, Link, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { useConfirm } from '@/Components/useConfirm';
 
 export default function OrdersPending({ orders }) {
+    const { confirmAction, dialog } = useConfirm();
+
     function release(order) {
-        if (! confirm(`إرسال الطلبية ${order.order_number} للتصميم؟`)) return;
-        router.post(`/admin/orders/${order.id}/release`);
+        confirmAction(`إرسال الطلبية ${order.order_number} للتصميم؟`,
+            (cb) => router.post(`/admin/orders/${order.id}/release`, {}, cb));
     }
 
     return (
         <AdminLayout title="بانتظار الموافقة على السعر">
             <Head title="بانتظار الموافقة" />
+            {dialog}
 
             <p className="text-xs text-muted mb-4">هذه الطلبيات مسجّلة مع عرض سعر، وهي متوقفة إلى أن يوافق الزبون على السعر.</p>
 

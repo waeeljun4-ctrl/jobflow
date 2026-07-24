@@ -1,10 +1,12 @@
 import { Fragment, useState } from 'react';
 import { Head, useForm, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { useConfirm } from '@/Components/useConfirm';
 
 export default function Inventory({ items }) {
     const [adjustingId, setAdjustingId] = useState(null);
     const [editingId, setEditingId] = useState(null);
+    const { confirmAction, dialog } = useConfirm();
 
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
@@ -20,14 +22,14 @@ export default function Inventory({ items }) {
     }
 
     function destroy(item) {
-        if (confirm(`حذف الصنف "${item.name}"؟ سيُحذف معه سجل حركاته بالكامل.`)) {
-            router.delete(`/admin/inventory/${item.id}`);
-        }
+        confirmAction(`حذف الصنف "${item.name}"؟ سيُحذف معه سجل حركاته بالكامل.`,
+            (cb) => router.delete(`/admin/inventory/${item.id}`, cb));
     }
 
     return (
         <AdminLayout title="📦 المخزن">
             <Head title="المخزن" />
+            {dialog}
 
             <form onSubmit={submit} className="bg-white rounded-2xl border border-cream-3 p-5 mb-6 flex flex-wrap gap-3 items-end">
                 <div>

@@ -1,15 +1,19 @@
 import { Head, Link, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { useConfirm } from '@/Components/useConfirm';
 
 export default function OrdersTrash({ orders }) {
+    const { confirmAction, dialog } = useConfirm();
+
     function restore(order) {
-        if (! confirm(`استرجاع الطلبية ${order.order_number}؟`)) return;
-        router.post(`/admin/orders/${order.id}/restore`);
+        confirmAction(`استرجاع الطلبية ${order.order_number}؟`,
+            (cb) => router.post(`/admin/orders/${order.id}/restore`, {}, cb));
     }
 
     return (
         <AdminLayout title="سلة المحذوفات">
             <Head title="سلة المحذوفات" />
+            {dialog}
 
             <div className="mb-4">
                 <Link href="/admin/orders" className="text-xs text-muted hover:underline">→ العودة لكل الطلبيات</Link>

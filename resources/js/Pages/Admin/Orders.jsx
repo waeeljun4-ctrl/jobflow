@@ -1,15 +1,17 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { useConfirm } from '@/Components/useConfirm';
 
 export default function Orders({ orders, filters }) {
     const [search, setSearch] = useState(filters.search ?? '');
     const [from, setFrom] = useState(filters.from ?? '');
     const [to, setTo] = useState(filters.to ?? '');
+    const { confirmAction, dialog } = useConfirm();
 
     function destroy(order) {
-        if (! confirm(`نقل الطلبية ${order.order_number} لسلة المحذوفات؟ تقدر تسترجعها لاحقاً من سلة المحذوفات.`)) return;
-        router.delete(`/admin/orders/${order.id}`);
+        confirmAction(`نقل الطلبية ${order.order_number} لسلة المحذوفات؟ تقدر تسترجعها لاحقاً من سلة المحذوفات.`,
+            (cb) => router.delete(`/admin/orders/${order.id}`, cb));
     }
 
     function applyFilters(e) {
@@ -38,6 +40,7 @@ export default function Orders({ orders, filters }) {
     return (
         <AdminLayout title="الطلبيات">
             <Head title="الطلبيات" />
+            {dialog}
 
             <div className="mb-4 flex items-center gap-2 flex-wrap">
                 <StatusTab label="الكل" active={!filters.status} onClick={() => setStatus('')} />

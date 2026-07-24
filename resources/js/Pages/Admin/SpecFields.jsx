@@ -1,5 +1,6 @@
 import { Head, useForm, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { useConfirm } from '@/Components/useConfirm';
 
 const fieldTypes = [
     { value: 'text', label: 'نص' },
@@ -11,6 +12,7 @@ const fieldTypes = [
 ];
 
 export default function SpecFields({ specFields }) {
+    const { confirmAction, dialog } = useConfirm();
     const { data, setData, post, processing, errors, reset } = useForm({
         label_ar: '',
         label_en: '',
@@ -54,14 +56,13 @@ export default function SpecFields({ specFields }) {
     }
 
     function destroy(field) {
-        if (confirm(`حذف "${field.label_ar}"؟`)) {
-            router.delete(`/admin/spec-fields/${field.id}`);
-        }
+        confirmAction(`حذف "${field.label_ar}"؟`, (cb) => router.delete(`/admin/spec-fields/${field.id}`, cb));
     }
 
     return (
         <AdminLayout title="حقول المواصفات">
             <Head title="حقول المواصفات" />
+            {dialog}
 
             <form onSubmit={submit} className="bg-white rounded-2xl border border-cream-3 p-5 mb-6 flex flex-wrap gap-3 items-end">
                 <div>

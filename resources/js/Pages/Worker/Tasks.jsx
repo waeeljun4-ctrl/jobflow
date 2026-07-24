@@ -3,6 +3,7 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import WorkerLayout from '@/Layouts/WorkerLayout';
 import AdminLayout from '@/Layouts/AdminLayout';
 import CopyButton from '@/Components/CopyButton';
+import { useConfirm } from '@/Components/useConfirm';
 
 const statusStyles = {
     available: 'bg-primary-pale text-primary',
@@ -23,6 +24,7 @@ export default function Tasks({ tasks }) {
     const [targetId, setTargetId] = useState('');
     const [reason, setReason] = useState('');
     const [showDone, setShowDone] = useState(false);
+    const { confirmAction, dialog } = useConfirm();
 
     const activeTasks = tasks.filter(t => t.status !== 'done');
     const doneTasks = tasks.filter(t => t.status === 'done');
@@ -32,9 +34,7 @@ export default function Tasks({ tasks }) {
     }
 
     function complete(task) {
-        if (confirm('تأكيد إنهاء هذه المرحلة؟')) {
-            router.post(`/my/tasks/${task.id}/complete`);
-        }
+        confirmAction('تأكيد إنهاء هذه المرحلة؟', (cb) => router.post(`/my/tasks/${task.id}/complete`, {}, cb));
     }
 
     function openSendBack(task) {
@@ -58,6 +58,7 @@ export default function Tasks({ tasks }) {
     return (
         <Layout title="مهامي">
             <Head title="مهامي" />
+            {dialog}
 
             <div className="space-y-3 max-w-2xl">
                 {activeTasks.length === 0 && (
