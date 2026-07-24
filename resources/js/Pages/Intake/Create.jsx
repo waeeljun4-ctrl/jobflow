@@ -202,14 +202,8 @@ export default function Create({ conditionalStages, specFields }) {
                                         <span className="text-sm text-ink">{stage.name_ar}</span>
                                     </label>
                                     {checked && stage.workers.length > 0 && (
-                                        <select value={data.stage_assignments[stage.id] ?? ''}
-                                            onChange={e => assignStage(stage.id, e.target.value)}
-                                            className="mt-2 w-full px-2 py-1.5 border-2 border-cream-3 rounded-lg text-xs focus:border-primary outline-none bg-white">
-                                            <option value="">عيّن لعامل محدد (اختياري)</option>
-                                            {stage.workers.map(worker => (
-                                                <option key={worker.id} value={worker.id}>{worker.name}</option>
-                                            ))}
-                                        </select>
+                                        <WorkerPicker stage={stage} value={data.stage_assignments[stage.id] ?? ''}
+                                            onChange={userId => assignStage(stage.id, userId)} />
                                     )}
                                 </div>
                             );
@@ -255,6 +249,43 @@ export default function Create({ conditionalStages, specFields }) {
                 </button>
             </form>
         </AdminLayout>
+    );
+}
+
+// Plain <select> — custom-built (not the browser's native picker), so it
+// can't be affected by whatever native-popup quirk was blocking the
+// dropdown from opening for some users.
+function WorkerPicker({ stage, value, onChange }) {
+    const [open, setOpen] = useState(false);
+    const selected = stage.workers.find(w => String(w.id) === String(value));
+
+    return (
+        <div className="relative mt-2">
+            <button type="button" onClick={() => setOpen(o => !o)}
+                className="w-full px-2 py-1.5 border-2 border-cream-3 rounded-lg text-xs text-right bg-white flex items-center justify-between gap-1">
+                <span className={selected ? 'text-ink font-bold' : 'text-muted'}>
+                    {selected ? selected.name : 'عيّن لعامل محدد (اختياري)'}
+                </span>
+                <span className="text-muted shrink-0">▾</span>
+            </button>
+            {open && (
+                <>
+                    <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+                    <div className="absolute top-full right-0 left-0 mt-1 bg-white border-2 border-cream-3 rounded-lg shadow-lg z-50 overflow-hidden max-h-48 overflow-y-auto">
+                        <button type="button" onClick={() => { onChange(''); setOpen(false); }}
+                            className="w-full text-right px-2.5 py-2 text-xs text-muted hover:bg-cream border-b border-cream-3">
+                            بدون تعيين
+                        </button>
+                        {stage.workers.map(worker => (
+                            <button key={worker.id} type="button" onClick={() => { onChange(String(worker.id)); setOpen(false); }}
+                                className={`w-full text-right px-2.5 py-2 text-xs hover:bg-primary-pale ${String(worker.id) === String(value) ? 'bg-primary-pale text-primary font-bold' : 'text-ink'}`}>
+                                {worker.name}
+                            </button>
+                        ))}
+                    </div>
+                </>
+            )}
+        </div>
     );
 }
 

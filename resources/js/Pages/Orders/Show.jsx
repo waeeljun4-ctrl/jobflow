@@ -35,7 +35,7 @@ export default function Show({ order, stages, canEdit }) {
     }
 
     function markCompleted() {
-        if (! confirm(`تحديد الطلبية ${order.order_number} كمكتملة؟`)) return;
+        if (! confirm(`تحديد الطلبية ${order.order_number} كمكتملة رح يقفل كل مراحل العمل المتبقية عليها تلقائياً — حتى المراحل يلي ما بلشت لسا. متأكد إنك بدك تكمل؟`)) return;
         router.post(`/admin/orders/${order.id}/complete`);
     }
 

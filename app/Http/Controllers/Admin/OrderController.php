@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\StageStatus;
 use App\Http\Controllers\Controller;
 use App\Models\CompanySetting;
 use App\Models\Order;
 use App\Services\PdfBrandingService;
 use App\Services\WorkflowService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
@@ -108,16 +110,27 @@ class OrderController extends Controller
     }
 
     /**
-     * Manual admin override — completing every stage already marks an
-     * order "completed" automatically (WorkflowService::refreshOrderStatusCache),
-     * this is only for edge cases the admin wants to close by hand without
-     * going through the stage pipeline.
+     * Manual admin override — closes every remaining stage instance (even
+     * ones not yet started) instead of just flipping the order's status
+     * label, so a worker's task queue never keeps showing a stage that the
+     * admin already force-completed from the order's own page.
      */
     public function complete(Order $order)
     {
-        $order->update(['status' => 'completed']);
+        DB::transaction(function () use ($order) {
+            $order->stageInstances()
+                ->where('status', '!=', StageStatus::Done->value)
+                ->get()
+                ->each(fn ($stage) => $stage->update([
+                    'status' => StageStatus::Done->value,
+                    'completed_at' => now(),
+                    'completed_by' => request()->user()->id,
+                ]));
 
-        return back()->with('success', 'تم تحديد الطلبية كمكتملة.');
+            $order->update(['status' => 'completed']);
+        });
+
+        return back()->with('success', 'تم تحديد الطلبية كمكتملة وأُغلقت كل مراحل العمل عليها.');
     }
 
     public function trashed()
