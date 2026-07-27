@@ -71,6 +71,23 @@ export default function Create({ conditionalStages, specFields }) {
         setImagePreviews(prev => [...prev, ...files.map(f => URL.createObjectURL(f))]);
     }
 
+    // Lets someone paste a screenshot straight from the clipboard (Ctrl+V)
+    // instead of having to save it to a file first, then browse for it.
+    // Scoped to the image box itself (not the whole page/window) so pasting
+    // text into notes/specs elsewhere on the form is never intercepted.
+    function handleImagePaste(e) {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+        const files = [];
+        for (const item of items) {
+            if (item.type.startsWith('image/')) {
+                const file = item.getAsFile();
+                if (file) files.push(file);
+            }
+        }
+        if (files.length) addImages(files);
+    }
+
     function removeImage(index) {
         setData('images', data.images.filter((_, i) => i !== index));
         setImagePreviews(prev => prev.filter((_, i) => i !== index));
@@ -235,11 +252,15 @@ export default function Create({ conditionalStages, specFields }) {
                         ))}
                     </div>
                     {data.images.length < MAX_IMAGES && (
-                        <label className="inline-block bg-cream px-4 py-2 rounded-xl border-2 border-dashed border-cream-3 text-sm text-muted cursor-pointer hover:border-primary">
-                            + إضافة صور
-                            <input type="file" accept="image/*" multiple className="hidden"
-                                onChange={e => { addImages(e.target.files); e.target.value = ''; }} />
-                        </label>
+                        <div tabIndex={0} onPaste={handleImagePaste}
+                            className="flex flex-col items-center justify-center gap-1 bg-cream px-4 py-4 rounded-xl border-2 border-dashed border-cream-3 focus:border-primary focus:outline-none text-center">
+                            <label className="text-sm text-muted cursor-pointer hover:text-primary">
+                                + إضافة صور
+                                <input type="file" accept="image/*" multiple className="hidden"
+                                    onChange={e => { addImages(e.target.files); e.target.value = ''; }} />
+                            </label>
+                            <span className="text-[11px] text-muted opacity-75">أو دوس هون والصق صورة (Ctrl+V)</span>
+                        </div>
                     )}
                     {errors.images && <p className="text-red-500 text-xs mt-1">{errors.images}</p>}
                 </div>

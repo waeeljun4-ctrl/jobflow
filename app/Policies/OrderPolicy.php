@@ -2,32 +2,20 @@
 
 namespace App\Policies;
 
-use App\Enums\StageStatus;
 use App\Models\Order;
 use App\Models\User;
 
 class OrderPolicy
 {
     /**
-     * A worker may edit an order's details while a stage on it is theirs to
-     * act on right now — either already claimed and in progress, or sitting
-     * available/unclaimed and assignable to them (so they can double-check
-     * specs before pressing "بدء العمل", not just mid-task). Once that stage
-     * is done, edit access closes again — unless the admin granted the
-     * standing "order.edit" permission, which works regardless of stage.
-     * Admins bypass this entirely via Gate::before.
+     * Editing an order's details (customer info, specs, images, pricing,
+     * stage reassignment) requires the standing "order.edit" permission —
+     * on its own, having an active stage on the order only lets a worker
+     * start/complete/send back *that stage*, not touch anything else about
+     * the order. Admins bypass this entirely via Gate::before.
      */
     public function edit(User $user, Order $order): bool
     {
-        if ($user->hasPermissionTo('order.edit')) {
-            return true;
-        }
-
-        return $order->stageInstances()
-            ->whereIn('status', [StageStatus::Available->value, StageStatus::InProgress->value])
-            ->where(fn ($q) => $q->whereNull('assigned_to')->orWhere('assigned_to', $user->id))
-            ->with('stageDefinition')
-            ->get()
-            ->contains(fn ($stage) => $user->hasPermissionTo($stage->requiredPermission()));
+        return $user->hasPermissionTo('order.edit');
     }
 }

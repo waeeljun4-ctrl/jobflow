@@ -15,14 +15,20 @@ const STAGE_STATUS_LABELS = {
 export default function Edit({ order, specFields, stageOptions, stageInstances }) {
     const { auth } = usePage().props;
     const isAdmin = auth?.user?.role === 'admin';
+    const canEditPricing = isAdmin || (auth?.permissions ?? []).includes('order.pricing');
     const Layout = isAdmin ? AdminLayout : WorkerLayout;
 
     const initialSpecs = Object.fromEntries(order.spec_values.map(sv => [sv.spec_field_id, sv.value]));
 
     const { data, setData, post, transform, processing, errors } = useForm({
+        customer_name: order.customer_name ?? '',
+        customer_phone: order.customer_phone ?? '',
         customer_address: order.customer_address ?? '',
         notes: order.notes ?? '',
         due_date: order.due_date ?? '',
+        price: order.price ?? '',
+        deposit_amount: order.deposit_amount ?? '',
+        deposit_payment_method: order.deposit_payment_method ?? '',
         specs: initialSpecs,
         images: [],
         delete_image_ids: [],
@@ -71,6 +77,23 @@ export default function Edit({ order, specFields, stageOptions, stageInstances }
         setImagePreviews(prev => [...prev, ...files.map(f => URL.createObjectURL(f))]);
     }
 
+    // Lets someone paste a screenshot straight from the clipboard (Ctrl+V)
+    // instead of having to save it to a file first, then browse for it.
+    // Scoped to the image box itself (not the whole page/window) so pasting
+    // text into notes/specs elsewhere on the form is never intercepted.
+    function handleImagePaste(e) {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+        const files = [];
+        for (const item of items) {
+            if (item.type.startsWith('image/')) {
+                const file = item.getAsFile();
+                if (file) files.push(file);
+            }
+        }
+        if (files.length) addImages(files);
+    }
+
     function removeNewImage(index) {
         setData('images', data.images.filter((_, i) => i !== index));
         setImagePreviews(prev => prev.filter((_, i) => i !== index));
@@ -95,6 +118,20 @@ export default function Edit({ order, specFields, stageOptions, stageInstances }
             <form onSubmit={submit} className="max-w-2xl space-y-6">
                 <div className="bg-white rounded-2xl border border-cream-3 p-5 space-y-4">
                     <p className="font-bold text-ink text-sm">بيانات العميل</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs font-bold text-muted block mb-1">اسم العميل</label>
+                            <input value={data.customer_name} onChange={e => setData('customer_name', e.target.value)}
+                                className="w-full px-3 py-2 border-2 border-cream-3 rounded-xl text-sm focus:border-primary outline-none" />
+                            {errors.customer_name && <p className="text-red-500 text-xs mt-1">{errors.customer_name}</p>}
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-muted block mb-1">رقم الهاتف</label>
+                            <input value={data.customer_phone} onChange={e => setData('customer_phone', e.target.value)}
+                                className="w-full px-3 py-2 border-2 border-cream-3 rounded-xl text-sm focus:border-primary outline-none" />
+                            {errors.customer_phone && <p className="text-red-500 text-xs mt-1">{errors.customer_phone}</p>}
+                        </div>
+                    </div>
                     <div>
                         <label className="text-xs font-bold text-muted block mb-1">العنوان</label>
                         <input value={data.customer_address} onChange={e => setData('customer_address', e.target.value)}
@@ -112,6 +149,44 @@ export default function Edit({ order, specFields, stageOptions, stageInstances }
                             className="w-full px-3 py-2 border-2 border-cream-3 rounded-xl text-sm focus:border-primary outline-none" />
                     </div>
                 </div>
+
+                {canEditPricing && (
+                    <div className="bg-white rounded-2xl border border-cream-3 p-5 space-y-4">
+                        <p className="font-bold text-ink text-sm">السعر والدفع <span className="text-muted font-normal text-xs">(حسب الصلاحية)</span></p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-xs font-bold text-muted block mb-1">السعر الكلي (₪)</label>
+                                <input type="number" step="0.01" min="0" value={data.price} onChange={e => setData('price', e.target.value)}
+                                    className="w-full px-3 py-2 border-2 border-cream-3 rounded-xl text-sm focus:border-primary outline-none" />
+                                {errors.price && <p className="text-red-500 text-xs mt-1">{errors.price}</p>}
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-muted block mb-1">مبلغ العربون (₪)</label>
+                                <input type="number" step="0.01" min="0" value={data.deposit_amount} onChange={e => setData('deposit_amount', e.target.value)}
+                                    className="w-full px-3 py-2 border-2 border-cream-3 rounded-xl text-sm focus:border-primary outline-none" />
+                                {errors.deposit_amount && <p className="text-red-500 text-xs mt-1">{errors.deposit_amount}</p>}
+                            </div>
+                        </div>
+                        {Number(data.deposit_amount) > 0 && (
+                            <div>
+                                <label className="text-xs font-bold text-muted block mb-1">طريقة دفع العربون</label>
+                                <select value={data.deposit_payment_method} onChange={e => setData('deposit_payment_method', e.target.value)}
+                                    className="w-full px-3 py-2 border-2 border-cream-3 rounded-xl text-sm focus:border-primary outline-none">
+                                    <option value="">— اختر —</option>
+                                    <option value="cash">نقدي</option>
+                                    <option value="bank_transfer">تحويل بنكي</option>
+                                    <option value="check">شيك</option>
+                                </select>
+                                {errors.deposit_payment_method && <p className="text-red-500 text-xs mt-1">{errors.deposit_payment_method}</p>}
+                            </div>
+                        )}
+                        {Number(data.price) > 0 && (
+                            <p className="text-xs text-muted">
+                                المتبقي: <span className="font-bold text-ink">{(Number(data.price) - Number(data.deposit_amount || 0)).toFixed(2)} ₪</span>
+                            </p>
+                        )}
+                    </div>
+                )}
 
                 <div className="bg-white rounded-2xl border border-cream-3 p-5">
                     <p className="font-bold text-ink text-sm mb-3">مواصفات القارمة</p>
@@ -148,11 +223,15 @@ export default function Edit({ order, specFields, stageOptions, stageInstances }
                         ))}
                     </div>
                     {existingImages.length + data.images.length < MAX_IMAGES && (
-                        <label className="inline-block bg-cream px-4 py-2 rounded-xl border-2 border-dashed border-cream-3 text-sm text-muted cursor-pointer hover:border-primary">
-                            + إضافة صور
-                            <input type="file" accept="image/*" multiple className="hidden"
-                                onChange={e => { addImages(e.target.files); e.target.value = ''; }} />
-                        </label>
+                        <div tabIndex={0} onPaste={handleImagePaste}
+                            className="flex flex-col items-center justify-center gap-1 bg-cream px-4 py-4 rounded-xl border-2 border-dashed border-cream-3 focus:border-primary focus:outline-none text-center">
+                            <label className="text-sm text-muted cursor-pointer hover:text-primary">
+                                + إضافة صور
+                                <input type="file" accept="image/*" multiple className="hidden"
+                                    onChange={e => { addImages(e.target.files); e.target.value = ''; }} />
+                            </label>
+                            <span className="text-[11px] text-muted opacity-75">أو دوس هون والصق صورة (Ctrl+V)</span>
+                        </div>
                     )}
                     {errors.images && <p className="text-red-500 text-xs mt-1">{errors.images}</p>}
                 </div>

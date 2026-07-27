@@ -87,4 +87,9 @@ class Order extends Model
     {
         return $this->hasMany(OrderImage::class);
     }
+
+    public function editLogs()
+    {
+        return $this->hasMany(OrderEditLog::class)->latest();
+    }
 }

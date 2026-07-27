@@ -6,56 +6,61 @@ export default function Profile({ user }) {
     const { auth } = usePage().props;
     const Layout = auth?.user?.role === 'admin' ? AdminLayout : WorkerLayout;
 
-    const { data, setData, put, processing, errors, reset } = useForm({
+    const infoForm = useForm({
+        name: user.name ?? '',
+        email: user.email ?? '',
+        phone: user.phone ?? '',
+    });
+
+    const passwordForm = useForm({
         current_password: '',
         password: '',
         password_confirmation: '',
     });
 
-    function submit(e) {
+    function submitInfo(e) {
         e.preventDefault();
-        put('/profile/password', { onSuccess: () => reset() });
+        infoForm.put('/profile');
+    }
+
+    function submitPassword(e) {
+        e.preventDefault();
+        passwordForm.put('/profile/password', { onSuccess: () => passwordForm.reset() });
     }
 
     return (
         <Layout title="الحساب">
             <Head title="الحساب" />
 
-            <div className="bg-white rounded-2xl border border-cream-3 p-5 mb-6 max-w-md">
-                <p className="font-bold text-ink text-sm mb-3">بياناتي</p>
-                <dl className="space-y-2 text-sm">
-                    <div>
-                        <dt className="text-muted text-xs">الاسم</dt>
-                        <dd className="text-ink font-bold">{user.name}</dd>
-                    </div>
-                    {user.email && (
-                        <div>
-                            <dt className="text-muted text-xs">البريد الإلكتروني</dt>
-                            <dd className="text-ink">{user.email}</dd>
-                        </div>
-                    )}
-                    {user.phone && (
-                        <div>
-                            <dt className="text-muted text-xs">رقم الهاتف</dt>
-                            <dd className="text-ink" dir="ltr">{user.phone}</dd>
-                        </div>
-                    )}
-                </dl>
-            </div>
+            <form onSubmit={submitInfo} className="bg-white rounded-2xl border border-cream-3 p-5 mb-6 max-w-md space-y-4">
+                <p className="font-bold text-ink text-sm">بياناتي</p>
 
-            <form onSubmit={submit} className="bg-white rounded-2xl border border-cream-3 p-5 max-w-md space-y-4">
+                <Field label="الاسم" value={infoForm.data.name}
+                    onChange={v => infoForm.setData('name', v)} error={infoForm.errors.name} />
+                <Field label="البريد الإلكتروني" type="email" value={infoForm.data.email}
+                    onChange={v => infoForm.setData('email', v)} error={infoForm.errors.email} />
+                <Field label="رقم الهاتف" value={infoForm.data.phone}
+                    onChange={v => infoForm.setData('phone', v)} error={infoForm.errors.phone} />
+
+                <button disabled={infoForm.processing}
+                    className="bg-ink text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-primary transition-colors disabled:opacity-60">
+                    {infoForm.processing ? '⏳ جاري الحفظ...' : 'حفظ البيانات'}
+                </button>
+            </form>
+
+            <form onSubmit={submitPassword} className="bg-white rounded-2xl border border-cream-3 p-5 max-w-md space-y-4">
                 <p className="font-bold text-ink text-sm">تغيير كلمة المرور</p>
 
-                <Field label="كلمة المرور الحالية" type="password" value={data.current_password}
-                    onChange={v => setData('current_password', v)} error={errors.current_password} />
-                <Field label="كلمة المرور الجديدة" type="password" value={data.password}
-                    onChange={v => setData('password', v)} error={errors.password} />
-                <Field label="تأكيد كلمة المرور الجديدة" type="password" value={data.password_confirmation}
-                    onChange={v => setData('password_confirmation', v)} />
+                <Field label="كلمة المرور الحالية" type="password" value={passwordForm.data.current_password}
+                    onChange={v => passwordForm.setData('current_password', v)} error={passwordForm.errors.current_password} />
+                <Field label="كلمة المرور الجديدة" type="password" value={passwordForm.data.password}
+                    onChange={v => passwordForm.setData('password', v)} error={passwordForm.errors.password} />
+                <Field label="تأكيد كلمة المرور الجديدة" type="password" value={passwordForm.data.password_confirmation}
+                    onChange={v => passwordForm.setData('password_confirmation', v)} />
 
-                <button disabled={processing}
+                <button disabled={passwordForm.processing}
                     className="bg-ink text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-primary transition-colors disabled:opacity-60">
-                    {processing ? '⏳ جاري الحفظ...' : 'حفظ كلمة المرور'}
+                    {passwordForm.processing ? '⏳ جاري الحفظ...' : 'حفظ كلمة المرور'}
                 </button>
             </form>
         </Layout>

@@ -42,6 +42,13 @@ class UserController extends Controller
             'password' => ['nullable', 'string', Password::min(8)],
         ]);
 
+        // An admin can't demote themselves — the UI already disables this,
+        // but this is the real guard: without it, a crafted request could
+        // still lock them out of the whole admin section instantly.
+        if ($request->user()->id === $user->id && $data['role'] !== 'admin') {
+            return back()->withErrors(['role' => 'ما تقدر تغيّر دورك بنفسك.']);
+        }
+
         if (empty($data['password'])) {
             unset($data['password']);
         }

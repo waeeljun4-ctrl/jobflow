@@ -17,7 +17,7 @@ class TaskVisibilityService
     public function visibleTo(User $user): Builder
     {
         $query = StageInstance::query()
-            ->with(['order', 'stageDefinition', 'dependsOn.stageDefinition'])
+            ->with(['order', 'stageDefinition', 'dependsOn.stageDefinition', 'transitions'])
             ->where('status', '!=', StageStatus::Locked->value)
             ->whereHas('order')
             ->where(function ($q) use ($user) {

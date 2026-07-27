@@ -44,7 +44,7 @@ export default function Tasks({ tasks }) {
     }
 
     function confirmSendBack() {
-        if (! targetId) return;
+        if (! targetId || ! reason.trim()) return;
         router.post(`/my/tasks/${sendBackTask.id}/send-back`, {
             target_stage_instance_id: targetId,
             reason,
@@ -112,10 +112,15 @@ export default function Tasks({ tasks }) {
                         </div>
 
                         <div>
-                            <label className="text-xs font-bold text-muted block mb-1">سبب الإرجاع (اختياري)</label>
+                            <label className="text-xs font-bold text-muted block mb-1">
+                                سبب الإرجاع <span className="text-red-500">*</span>
+                            </label>
                             <textarea value={reason} onChange={e => setReason(e.target.value)} rows={2}
                                 className="w-full border border-cream-3 rounded-xl px-3 py-2 text-sm text-ink resize-none"
                                 placeholder="مثلاً: القص مو مطابق للمقاس" />
+                            {! reason.trim() && (
+                                <p className="text-[11px] text-muted mt-1">لازم تكتب السبب قبل ما ترجع الطلبية.</p>
+                            )}
                         </div>
 
                         <div className="flex gap-2 pt-1">
@@ -123,8 +128,8 @@ export default function Tasks({ tasks }) {
                                 className="flex-1 bg-cream-2 border border-cream-3 text-ink py-2 rounded-xl text-sm font-bold hover:bg-cream-3 transition-colors">
                                 إلغاء
                             </button>
-                            <button onClick={confirmSendBack}
-                                className="flex-1 bg-red-600 text-white py-2 rounded-xl text-sm font-bold hover:bg-red-700 transition-colors">
+                            <button onClick={confirmSendBack} disabled={! reason.trim()}
+                                className="flex-1 bg-red-600 text-white py-2 rounded-xl text-sm font-bold hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                                 تأكيد الإرجاع
                             </button>
                         </div>
@@ -153,9 +158,15 @@ function TaskCard({ task, onStart, onComplete, onSendBack }) {
                 </span>
             </div>
 
-            <p className="text-sm text-ink mb-3">
+            <p className="text-sm text-ink mb-2">
                 {task.stage_definition?.name_ar}
             </p>
+
+            {task.last_send_back_reason && (
+                <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-2.5 py-1.5 mb-3">
+                    ↩ مُرجع لسبب: {task.last_send_back_reason}
+                </p>
+            )}
 
             <div className="flex gap-2">
                 {task.status === 'available' && (

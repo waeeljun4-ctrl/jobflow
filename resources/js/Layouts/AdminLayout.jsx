@@ -22,6 +22,8 @@ export default function AdminLayout({ children, title }) {
         (isAdmin || permissions.includes('page.stages')) && { href: '/admin/stages', label: 'المراحل والأعمال', icon: '🏭' },
         (isAdmin || permissions.includes('page.spec_fields')) && { href: '/admin/spec-fields', label: 'المواصفات', icon: '🧾' },
         (isAdmin || permissions.includes('page.inventory')) && { href: '/admin/inventory', label: 'المخزن', icon: '🏬' },
+        (isAdmin || permissions.includes('page.expenses')) && { href: '/admin/expenses', label: 'المصاريف', icon: '💰' },
+        (isAdmin || permissions.includes('page.ledger')) && { href: '/admin/ledger', label: 'دفتر الحسابات', icon: '📒' },
         isAdmin && { href: '/admin/users', label: 'العمال', icon: '👥' },
         isAdmin && { href: '/admin/settings/company', label: 'بيانات الشركة', icon: '⚙️' },
         { href: '/profile', label: 'الحساب', icon: '🔑' },

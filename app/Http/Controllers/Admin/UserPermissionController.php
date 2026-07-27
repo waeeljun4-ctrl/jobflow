@@ -23,6 +23,8 @@ class UserPermissionController extends Controller
         ['name' => 'page.stages', 'label' => 'المراحل والأعمال'],
         ['name' => 'page.spec_fields', 'label' => 'المواصفات'],
         ['name' => 'page.inventory', 'label' => 'المخزن'],
+        ['name' => 'page.expenses', 'label' => 'المصاريف'],
+        ['name' => 'page.ledger', 'label' => 'دفتر الحسابات'],
     ];
 
     /**
@@ -31,6 +33,7 @@ class UserPermissionController extends Controller
     private const ACTION_PERMISSIONS = [
         ['name' => 'order.complete', 'label' => 'تحديد الطلبية كمكتملة'],
         ['name' => 'order.edit', 'label' => 'تعديل الطلبية'],
+        ['name' => 'order.pricing', 'label' => 'رؤية وتعديل السعر والعربون'],
     ];
 
     public function edit(User $user)

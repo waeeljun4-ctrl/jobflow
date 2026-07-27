@@ -43,12 +43,12 @@ class TaskController extends Controller
 
         $data = $request->validate([
             'target_stage_instance_id' => 'required|integer|exists:stage_instances,id',
-            'reason' => 'nullable|string|max:255',
+            'reason' => 'required|string|max:255',
         ]);
 
         $target = StageInstance::findOrFail($data['target_stage_instance_id']);
 
-        $workflow->sendBack($stageInstance, $target, $request->user(), $data['reason'] ?? null);
+        $workflow->sendBack($stageInstance, $target, $request->user(), $data['reason']);
 
         return back()->with('success', 'تم إرجاع الطلبية للمرحلة السابقة.');
     }

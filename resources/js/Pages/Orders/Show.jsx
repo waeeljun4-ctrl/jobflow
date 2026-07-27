@@ -24,7 +24,7 @@ const paymentMethodLabels = {
     check: 'شيك',
 };
 
-export default function Show({ order, stages, canEdit }) {
+export default function Show({ order, stages, canEdit, editLogs }) {
     const { auth } = usePage().props;
     const isAdmin = auth?.user?.role === 'admin';
     const canComplete = isAdmin || (auth?.permissions ?? []).includes('order.complete');
@@ -196,6 +196,22 @@ export default function Show({ order, stages, canEdit }) {
                                 )}
                                 <Info label="المتبقي" value={order.remaining_balance !== null ? `${order.remaining_balance} ₪` : null} />
                             </dl>
+                        </div>
+                    )}
+                    {editLogs?.length > 0 && (
+                        <div className="bg-white rounded-2xl border border-cream-3 p-5">
+                            <p className="font-bold text-ink text-sm mb-3">سجل التعديلات</p>
+                            <div className="space-y-2.5">
+                                {editLogs.map(log => (
+                                    <div key={log.id} className="text-xs">
+                                        <p className="text-ink font-bold">
+                                            {log.user?.name ?? '—'}
+                                            <span className="text-muted font-normal"> — {new Date(log.created_at).toLocaleString('ar')}</span>
+                                        </p>
+                                        <p className="text-muted mt-0.5">عدّل: {log.changed_fields.join('، ')}</p>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     )}
                 </div>

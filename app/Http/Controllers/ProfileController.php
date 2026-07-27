@@ -20,6 +20,21 @@ class ProfileController extends Controller
         ]);
     }
 
+    public function updateInfo(Request $request)
+    {
+        $user = $request->user();
+
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email,'.$user->id,
+            'phone' => 'nullable|string|max:50',
+        ]);
+
+        $user->update($data);
+
+        return back()->with('success', 'تم تحديث بياناتك.');
+    }
+
     public function updatePassword(Request $request)
     {
         $data = $request->validate([

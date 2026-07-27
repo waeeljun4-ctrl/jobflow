@@ -4,8 +4,10 @@ use App\Http\Controllers\Admin\CompanySettingController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ExecutionController;
+use App\Http\Controllers\Admin\ExpenseController;
 use App\Http\Controllers\Admin\ImpersonationController;
 use App\Http\Controllers\Admin\InventoryController;
+use App\Http\Controllers\Admin\LedgerController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\QuoteController;
 use App\Http\Controllers\Admin\SpecFieldController;
@@ -117,11 +119,27 @@ Route::middleware(['auth', 'permission:page.inventory'])->prefix('admin')->name(
     Route::delete('/inventory/{inventoryItem}', [InventoryController::class, 'destroy'])->name('inventory.destroy');
 });
 
+Route::middleware(['auth', 'permission:page.expenses'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/expenses', [ExpenseController::class, 'index'])->name('expenses.index');
+    Route::get('/expenses/print', [ExpenseController::class, 'print'])->name('expenses.print');
+    Route::post('/expenses', [ExpenseController::class, 'store'])->name('expenses.store');
+    Route::delete('/expenses/{expense}', [ExpenseController::class, 'destroy'])->name('expenses.destroy');
+});
+
+Route::middleware(['auth', 'permission:page.ledger'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/ledger', [LedgerController::class, 'index'])->name('ledger.index');
+    Route::get('/ledger/print/{type}', [LedgerController::class, 'print'])->name('ledger.print');
+    Route::post('/ledger/suppliers', [LedgerController::class, 'storeSupplier'])->name('ledger.suppliers.store');
+    Route::post('/ledger/entries', [LedgerController::class, 'storeEntry'])->name('ledger.entries.store');
+    Route::delete('/ledger/entries/{entry}', [LedgerController::class, 'destroyEntry'])->name('ledger.entries.destroy');
+});
+
 Route::middleware('auth')->post('/stop-impersonating', [ImpersonationController::class, 'stop'])->name('impersonate.stop');
 
 // ── PROFILE (any authenticated user) ──
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::put('/profile', [ProfileController::class, 'updateInfo'])->name('profile.update');
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.updatePassword');
 });
 
