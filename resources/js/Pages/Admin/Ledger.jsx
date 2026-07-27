@@ -64,9 +64,19 @@ export default function Ledger({ workers, suppliers }) {
 }
 
 function PartySection({ title, parties, openParty, onToggle, onDeleteEntry, emptyText }) {
+    const total = parties.reduce((sum, p) => sum + Number(p.balance), 0);
+
     return (
         <div className="bg-white rounded-2xl border border-cream-3 overflow-hidden">
-            <p className="font-bold text-ink text-sm px-5 py-3 border-b border-cream-3">{title}</p>
+            <div className="flex items-center justify-between px-5 py-3 border-b border-cream-3">
+                <p className="font-bold text-ink text-sm">{title}</p>
+                {parties.length > 0 && (
+                    <div className="text-xs">
+                        <span className="text-muted ml-1.5">الإجمالي:</span>
+                        <Balance amount={total} />
+                    </div>
+                )}
+            </div>
             <table className="w-full text-sm">
                 <tbody>
                     {parties.length === 0 && (
@@ -166,15 +176,18 @@ function PartyDetail({ party, onDeleteEntry }) {
             <div className="space-y-1.5">
                 {party.entries.length === 0 && <p className="text-xs text-muted">لا توجد حركات مسجلة بعد</p>}
                 {party.entries.map(entry => (
-                    <div key={entry.id} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 text-xs">
-                        <div>
+                    <div key={entry.id} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 text-xs gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <span className="bg-cream-2 text-ink font-bold px-2 py-1 rounded-md shrink-0">
+                                📅 {entry.entry_date.slice(0, 10)}
+                            </span>
                             <span className={`font-black ${entry.amount > 0 ? 'text-red-600' : 'text-green-600'}`}>
                                 {entry.amount > 0 ? '+' : '−'}{Math.abs(entry.amount)}₪
                             </span>
-                            <span className="text-ink mr-2">{entry.description}</span>
-                            <span className="text-muted mr-2">{entry.entry_date} — {entry.creator?.name}</span>
+                            <span className="text-ink">{entry.description}</span>
+                            <span className="text-muted">— {entry.creator?.name}</span>
                         </div>
-                        <button onClick={() => onDeleteEntry(entry)} className="text-red-500 hover:underline">حذف</button>
+                        <button onClick={() => onDeleteEntry(entry)} className="text-red-500 hover:underline shrink-0">حذف</button>
                     </div>
                 ))}
             </div>

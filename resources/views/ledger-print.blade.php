@@ -20,6 +20,7 @@
         .due { color: #b02a2a; font-weight: bold; }
         .credit { color: #1a7a3a; font-weight: bold; }
         .balanced { color: #888; }
+        .total-box { background: {{ $accentLight }}; font-weight: bold; font-size: 14px; padding: 8px 18px; display: inline-block; }
     </style>
 </head>
 <body>
@@ -65,5 +66,12 @@
             @endif
         </tbody>
     </table>
+
+    @php($total = $rows->sum('balance'))
+    <div class="total-box">
+        @if($total > 0) الإجمالي: عليك لهم {{ number_format($total, 2) }}
+        @elseif($total < 0) الإجمالي: إلك عندهم {{ number_format(abs($total), 2) }}
+        @else الإجمالي: متوازن @endif
+    </div>
 </body>
 </html>

@@ -86,6 +86,7 @@ export default function Orders({ orders, filters }) {
                             <th className="px-5 py-2">العميل</th>
                             <th className="px-5 py-2">أنواع العمل</th>
                             <th className="px-5 py-2">الحالة</th>
+                            <th className="px-5 py-2">التاريخ</th>
                             <th className="px-5 py-2"></th>
                         </tr>
                     </thead>
@@ -102,6 +103,7 @@ export default function Orders({ orders, filters }) {
                                     {order.stage_definitions.map(s => s.name_ar).join('، ')}
                                 </td>
                                 <td className="px-5 py-3">{order.status_label}</td>
+                                <td className="px-5 py-3 text-muted">{order.created_at.slice(0, 10)}</td>
                                 <td className="px-5 py-3 text-left">
                                     <button onClick={() => destroy(order)}
                                         className="text-red-500 hover:text-red-700 text-xs font-bold">
@@ -111,7 +113,7 @@ export default function Orders({ orders, filters }) {
                             </tr>
                         ))}
                         {orders.data.length === 0 && (
-                            <tr><td colSpan={5} className="px-5 py-6 text-center text-muted">لا يوجد طلبيات مطابقة</td></tr>
+                            <tr><td colSpan={6} className="px-5 py-6 text-center text-muted">لا يوجد طلبيات مطابقة</td></tr>
                         )}
                     </tbody>
                 </table>

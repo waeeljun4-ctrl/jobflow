@@ -143,7 +143,7 @@ export default function Expenses({ expenses, byAdmin, filters, categories, today
                         )}
                         {expenses.map(expense => (
                             <tr key={expense.id} className="border-t border-cream-3">
-                                <td className="px-5 py-3 text-muted">{expense.spent_on}</td>
+                                <td className="px-5 py-3 text-muted">{expense.spent_on.slice(0, 10)}</td>
                                 <td className="px-5 py-3 font-bold text-ink">{expense.description}</td>
                                 <td className="px-5 py-3 text-muted">{expense.category ?? '—'}</td>
                                 <td className="px-5 py-3 font-bold text-ink">{expense.amount}₪</td>
