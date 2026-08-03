@@ -48,4 +48,14 @@ class CustomerController extends Controller
 
         return back()->with('success', 'تم تحديث بيانات الزبون.');
     }
+
+    public function destroy(Customer $customer)
+    {
+        // orders.customer_id is nullOnDelete — past orders stay intact
+        // (they already have their own snapshot of name/phone/address),
+        // they just stop being linked to this customer record.
+        $customer->delete();
+
+        return back()->with('success', 'تم حذف الزبون.');
+    }
 }

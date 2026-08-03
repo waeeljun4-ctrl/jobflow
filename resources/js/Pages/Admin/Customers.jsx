@@ -1,18 +1,27 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { useConfirm } from '@/Components/useConfirm';
 
 export default function Customers({ customers, search }) {
     const [query, setQuery] = useState(search ?? '');
+    const { confirmAction, dialog } = useConfirm();
 
     function submitSearch(e) {
         e.preventDefault();
         router.get('/admin/customers', { search: query }, { preserveState: true });
     }
 
+    function destroy(e, customer) {
+        e.stopPropagation();
+        confirmAction(`حذف الزبون "${customer.name}"؟ الطلبيات القديمة بتضل موجودة، بس رح تنفصل عن هالزبون.`,
+            (cb) => router.delete(`/admin/customers/${customer.id}`, cb));
+    }
+
     return (
         <AdminLayout title="الزبائن">
             <Head title="الزبائن" />
+            {dialog}
 
             <form onSubmit={submitSearch} className="mb-6 flex gap-3">
                 <input value={query} onChange={e => setQuery(e.target.value)}
@@ -31,6 +40,7 @@ export default function Customers({ customers, search }) {
                             <th className="px-5 py-2">الهاتف</th>
                             <th className="px-5 py-2">العنوان</th>
                             <th className="px-5 py-2">عدد الطلبيات</th>
+                            <th className="px-5 py-2"></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -45,10 +55,15 @@ export default function Customers({ customers, search }) {
                                         {c.orders_count}
                                     </span>
                                 </td>
+                                <td className="px-5 py-3 text-left">
+                                    <button onClick={e => destroy(e, c)} className="text-red-500 hover:text-red-700 text-xs font-bold">
+                                        🗑️ حذف
+                                    </button>
+                                </td>
                             </tr>
                         ))}
                         {customers.data.length === 0 && (
-                            <tr><td colSpan={4} className="px-5 py-6 text-center text-muted">لا يوجد زبائن بعد</td></tr>
+                            <tr><td colSpan={5} className="px-5 py-6 text-center text-muted">لا يوجد زبائن بعد</td></tr>
                         )}
                     </tbody>
                 </table>
