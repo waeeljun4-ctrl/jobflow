@@ -9,7 +9,9 @@ use App\Http\Controllers\Admin\ImpersonationController;
 use App\Http\Controllers\Admin\InventoryController;
 use App\Http\Controllers\Admin\LedgerController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
+use App\Http\Controllers\Admin\PausedController;
 use App\Http\Controllers\Admin\QuoteController;
+use App\Http\Controllers\Admin\WorkerHoursController;
 use App\Http\Controllers\Admin\SpecFieldController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\StageDefinitionController;
@@ -72,6 +74,17 @@ Route::middleware(['auth', 'permission:page.dashboard'])->prefix('admin')->name(
 
 Route::middleware(['auth', 'permission:page.execution'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/execution', [ExecutionController::class, 'index'])->name('execution');
+});
+
+Route::middleware(['auth', 'permission:page.paused'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/paused', [PausedController::class, 'index'])->name('paused.index');
+    Route::post('/paused/{stageInstance}/resume', [PausedController::class, 'resume'])->name('paused.resume');
+});
+
+Route::middleware(['auth', 'permission:page.worker_hours'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/worker-hours', [WorkerHoursController::class, 'index'])->name('workerHours.index');
+    Route::get('/worker-hours/{user}', [WorkerHoursController::class, 'show'])->name('workerHours.show');
+    Route::get('/worker-hours/{user}/print', [WorkerHoursController::class, 'print'])->name('workerHours.print');
 });
 
 Route::middleware(['auth', 'permission:page.stages'])->prefix('admin')->name('admin.')->group(function () {
@@ -162,6 +175,10 @@ Route::middleware('auth')->prefix('my')->name('my.')->group(function () {
     Route::post('/tasks/{stageInstance}/start', [TaskController::class, 'start'])->name('tasks.start');
     Route::post('/tasks/{stageInstance}/complete', [TaskController::class, 'complete'])->name('tasks.complete');
     Route::post('/tasks/{stageInstance}/send-back', [TaskController::class, 'sendBack'])->name('tasks.sendBack');
+    Route::post('/tasks/{stageInstance}/pause', [TaskController::class, 'pause'])->name('tasks.pause');
+    Route::post('/tasks/{stageInstance}/resume', [TaskController::class, 'resume'])->name('tasks.resume');
+    Route::post('/end-shift', [TaskController::class, 'endShift'])->name('endShift');
+    Route::post('/start-shift', [TaskController::class, 'startShift'])->name('startShift');
 });
 
 // ── ORDER DETAIL (policy-gated, shared by admin + workers) ──

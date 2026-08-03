@@ -17,6 +17,8 @@ class UserPermissionController extends Controller
     private const PAGE_PERMISSIONS = [
         ['name' => 'page.dashboard', 'label' => 'لوحة التحكم'],
         ['name' => 'page.execution', 'label' => 'قيد التنفيذ'],
+        ['name' => 'page.paused', 'label' => 'متوقف مؤقتاً'],
+        ['name' => 'page.worker_hours', 'label' => 'ساعات عمل العمال'],
         ['name' => 'page.orders_pending', 'label' => 'بانتظار الموافقة'],
         ['name' => 'page.orders', 'label' => 'الطلبات'],
         ['name' => 'page.quotes', 'label' => 'عروض الأسعار'],

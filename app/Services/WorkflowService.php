@@ -6,6 +6,7 @@ use App\Enums\StageStatus;
 use App\Models\Order;
 use App\Models\StageDefinition;
 use App\Models\StageInstance;
+use App\Models\StagePause;
 use App\Models\StageTransition;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -335,6 +336,77 @@ class WorkflowService
                 ['type' => 'stage_sent_back', 'stage_instance_id' => $target->id, 'order_id' => $target->order_id]
             );
         });
+    }
+
+    /**
+     * A worker stops the clock on a stage without moving it anywhere —
+     * either genuinely blocked ('shortage', reason required, surfaces on
+     * the admin's dedicated page as a problem) or just done for the day
+     * ('end_of_day', no reason, not a problem). Deliberately not a status
+     * transition: the stage stays exactly available/in_progress underneath
+     * (recomputeAvailability and the dashboard's status counts are
+     * untouched) — a pause is a parallel interval log that only affects
+     * worked-hours math (see StageInstance::elapsedHours).
+     */
+    public function pauseStage(StageInstance $stage, User $user, string $type, ?string $reason = null): void
+    {
+        $stage->pauses()->create([
+            'paused_by' => $user->id,
+            'type' => $type,
+            'reason' => $reason,
+            'paused_at' => now(),
+        ]);
+
+        if ($type === 'shortage') {
+            $this->notifications->notifyStageEligibleUsers(
+                $stage,
+                '⏸️ طلبية متوقفة مؤقتاً',
+                "{$user->name} أوقف العمل مؤقتاً على طلبية {$stage->order->order_number} (\"{$stage->stageDefinition->name_ar}\"): {$reason}",
+                ['type' => 'stage_paused', 'stage_instance_id' => $stage->id, 'order_id' => $stage->order_id]
+            );
+        }
+    }
+
+    public function resumeStage(StageInstance $stage): void
+    {
+        $stage->pauses()->whereNull('resumed_at')->update(['resumed_at' => now()]);
+    }
+
+    /**
+     * Global "رايح عالبيت" — every active, not-already-paused task
+     * currently assigned to $user gets an 'end_of_day' pause in one go,
+     * instead of the worker opening each order to do it individually.
+     *
+     * @return int how many tasks were paused
+     */
+    public function endShift(User $user): int
+    {
+        $stages = StageInstance::where('assigned_to', $user->id)
+            ->whereIn('status', [StageStatus::Available->value, StageStatus::InProgress->value])
+            ->with('pauses')
+            ->get()
+            ->reject(fn (StageInstance $s) => $s->isPaused());
+
+        foreach ($stages as $stage) {
+            $this->pauseStage($stage, $user, 'end_of_day');
+        }
+
+        return $stages->count();
+    }
+
+    /**
+     * @return int how many tasks were resumed
+     */
+    public function startShift(User $user): int
+    {
+        $pauses = StagePause::whereNull('resumed_at')
+            ->where('type', 'end_of_day')
+            ->whereHas('stageInstance', fn ($q) => $q->where('assigned_to', $user->id))
+            ->get();
+
+        $pauses->each->update(['resumed_at' => now()]);
+
+        return $pauses->count();
     }
 
     /**

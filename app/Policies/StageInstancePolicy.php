@@ -21,7 +21,8 @@ class StageInstancePolicy
     public function complete(User $user, StageInstance $stage): bool
     {
         return $this->canAct($user, $stage)
-            && in_array($stage->status, [StageStatus::Available->value, StageStatus::InProgress->value], true);
+            && in_array($stage->status, [StageStatus::Available->value, StageStatus::InProgress->value], true)
+            && ! $stage->isPaused();
     }
 
     public function sendBack(User $user, StageInstance $stage): bool
@@ -29,6 +30,18 @@ class StageInstancePolicy
         return $this->canAct($user, $stage)
             && in_array($stage->status, [StageStatus::Available->value, StageStatus::InProgress->value], true)
             && $stage->dependsOn()->exists();
+    }
+
+    public function pause(User $user, StageInstance $stage): bool
+    {
+        return $this->canAct($user, $stage)
+            && in_array($stage->status, [StageStatus::Available->value, StageStatus::InProgress->value], true)
+            && ! $stage->isPaused();
+    }
+
+    public function resume(User $user, StageInstance $stage): bool
+    {
+        return $this->canAct($user, $stage) && $stage->isPaused();
     }
 
     private function canAct(User $user, StageInstance $stage, bool $allowLocked = false): bool

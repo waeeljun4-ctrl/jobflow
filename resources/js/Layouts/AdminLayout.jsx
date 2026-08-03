@@ -13,6 +13,8 @@ export default function AdminLayout({ children, title }) {
     const navItems = [
         (isAdmin || permissions.includes('page.dashboard')) && { href: '/admin', label: 'لوحة التحكم', icon: '📊' },
         (isAdmin || permissions.includes('page.execution')) && { href: '/admin/execution', label: 'قيد التنفيذ', icon: '🔥' },
+        (isAdmin || permissions.includes('page.paused')) && { href: '/admin/paused', label: 'متوقف مؤقتاً', icon: '⏸️' },
+        (isAdmin || permissions.includes('page.worker_hours')) && { href: '/admin/worker-hours', label: 'ساعات عمل العمال', icon: '⏱️' },
         (isAdmin || permissions.includes('page.orders_pending')) && { href: '/admin/orders/pending', label: 'بانتظار الموافقة', icon: '⏳' },
         (isAdmin || permissions.includes('page.orders')) && { href: '/admin/orders', label: 'الطلبات', icon: '📦' },
         isAdmin && { href: '/admin/orders/trash', label: 'سلة المحذوفات', icon: '🗑️' },

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\StageInstance;
+use App\Models\StagePause;
 use App\Services\TaskVisibilityService;
 use App\Services\WorkflowService;
 use Illuminate\Http\Request;
@@ -14,8 +15,14 @@ class TaskController extends Controller
     {
         $tasks = $visibility->visibleTo($request->user())->get();
 
+        $offShift = StagePause::whereNull('resumed_at')
+            ->where('type', 'end_of_day')
+            ->whereHas('stageInstance', fn ($q) => $q->where('assigned_to', $request->user()->id))
+            ->exists();
+
         return Inertia::render('Worker/Tasks', [
             'tasks' => $tasks,
+            'offShift' => $offShift,
         ]);
     }
 
@@ -51,5 +58,48 @@ class TaskController extends Controller
         $workflow->sendBack($stageInstance, $target, $request->user(), $data['reason']);
 
         return back()->with('success', 'تم إرجاع الطلبية للمرحلة السابقة.');
+    }
+
+    public function pause(Request $request, StageInstance $stageInstance, WorkflowService $workflow)
+    {
+        $this->authorize('pause', $stageInstance);
+
+        $data = $request->validate([
+            'type' => 'required|in:shortage,end_of_day',
+            'reason' => 'required_if:type,shortage|nullable|string|max:255',
+        ]);
+
+        $workflow->pauseStage($stageInstance, $request->user(), $data['type'], $data['reason'] ?? null);
+
+        $message = $data['type'] === 'shortage' ? 'تم إيقاف المرحلة مؤقتاً.' : 'تم تسجيل توقف الدوام.';
+
+        return back()->with('success', $message);
+    }
+
+    public function resume(Request $request, StageInstance $stageInstance, WorkflowService $workflow)
+    {
+        $this->authorize('resume', $stageInstance);
+
+        $workflow->resumeStage($stageInstance);
+
+        return back()->with('success', 'تم استئناف العمل على المرحلة.');
+    }
+
+    /**
+     * Global "رايح عالبيت" — pauses every active task assigned to the
+     * worker at once, so they don't have to open each order individually.
+     */
+    public function endShift(Request $request, WorkflowService $workflow)
+    {
+        $count = $workflow->endShift($request->user());
+
+        return back()->with('success', $count > 0 ? "تم إنهاء الدوام على {$count} مهمة." : 'ما في مهام نشطة لإيقافها.');
+    }
+
+    public function startShift(Request $request, WorkflowService $workflow)
+    {
+        $count = $workflow->startShift($request->user());
+
+        return back()->with('success', $count > 0 ? "تم استئناف العمل على {$count} مهمة." : 'ما في دوام متوقف لاستئنافه.');
     }
 }

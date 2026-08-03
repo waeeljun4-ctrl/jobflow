@@ -7,6 +7,8 @@
 export const PERMISSION_LINKS = [
     { name: 'page.dashboard', label: 'لوحة التحكم', icon: '📊', href: '/admin' },
     { name: 'page.execution', label: 'قيد التنفيذ', icon: '🔥', href: '/admin/execution' },
+    { name: 'page.paused', label: 'متوقف مؤقتاً', icon: '⏸️', href: '/admin/paused' },
+    { name: 'page.worker_hours', label: 'ساعات عمل العمال', icon: '⏱️', href: '/admin/worker-hours' },
     { name: 'page.orders_pending', label: 'بانتظار الموافقة', icon: '⏳', href: '/admin/orders/pending' },
     { name: 'page.orders', label: 'الطلبات', icon: '📦', href: '/admin/orders' },
     { name: 'page.quotes', label: 'عروض الأسعار', icon: '🧮', href: '/admin/quotes' },

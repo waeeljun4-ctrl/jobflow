@@ -1,0 +1,140 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Enums\StageStatus;
+use App\Http\Controllers\Controller;
+use App\Models\CompanySetting;
+use App\Models\StageInstance;
+use App\Models\User;
+use App\Services\PdfBrandingService;
+use App\Services\WorkHoursReportService;
+use Illuminate\Support\Facades\Storage;
+use Inertia\Inertia;
+
+class WorkerHoursController extends Controller
+{
+    private const DAY_NAMES_AR = [
+        0 => 'الأحد', 1 => 'الاثنين', 2 => 'الثلاثاء', 3 => 'الأربعاء',
+        4 => 'الخميس', 5 => 'الجمعة', 6 => 'السبت',
+    ];
+
+    private const MONTH_NAMES_AR = [
+        1 => 'يناير', 2 => 'فبراير', 3 => 'مارس', 4 => 'أبريل', 5 => 'مايو', 6 => 'يونيو',
+        7 => 'يوليو', 8 => 'أغسطس', 9 => 'سبتمبر', 10 => 'أكتوبر', 11 => 'نوفمبر', 12 => 'ديسمبر',
+    ];
+
+    public function __construct(private WorkHoursReportService $report, private PdfBrandingService $branding)
+    {
+    }
+
+    /**
+     * Total worked hours per worker, across every stage instance they've
+     * ever touched — built on the same pause-aware elapsed_hours used
+     * everywhere else, so a stage left open overnight or over a material
+     * shortage never inflates a worker's count.
+     */
+    public function index()
+    {
+        $workers = User::where('role', 'worker')->orderBy('name')->get();
+
+        $stats = $workers->map(function (User $worker) {
+            $instances = StageInstance::where('assigned_to', $worker->id)
+                ->whereNotNull('started_at')
+                ->with('pauses')
+                ->get();
+
+            return [
+                'id' => $worker->id,
+                'name' => $worker->name,
+                'total_hours' => round($instances->sum('elapsed_hours'), 1),
+                'tasks_count' => $instances->count(),
+                'active_count' => $instances->where('status', StageStatus::InProgress->value)->count(),
+            ];
+        })->sortByDesc('total_hours')->values();
+
+        return Inertia::render('Admin/WorkerHours', [
+            'workers' => $stats,
+        ]);
+    }
+
+    /**
+     * The daily/monthly log for one worker — date by date, which orders
+     * contributed hours that day, rolled up into monthly totals.
+     */
+    public function show(User $user)
+    {
+        return Inertia::render('Admin/WorkerHoursDetail', [
+            'worker' => $user->only('id', 'name'),
+            ...$this->buildReport($user),
+        ]);
+    }
+
+    public function print(User $user)
+    {
+        $company = CompanySetting::current();
+        $logoPath = $company->logo_path && Storage::disk('public')->exists($company->logo_path)
+            ? Storage::disk('public')->path($company->logo_path)
+            : null;
+
+        [$accentColor, $accentLight] = $this->branding->extractAccentColor($logoPath);
+        [$logoWidth, $logoHeight] = $this->branding->fitLogoBox($logoPath);
+
+        $html = view('worker-hours-print', [
+            'worker' => $user,
+            'company' => $company,
+            'logoPath' => $logoPath,
+            'logoWidth' => $logoWidth,
+            'logoHeight' => $logoHeight,
+            'accentColor' => $accentColor,
+            'accentLight' => $accentLight,
+            ...$this->buildReport($user),
+        ])->render();
+
+        $mpdf = $this->branding->makePdf();
+        $mpdf->SetTitle("سجل ساعات عمل {$user->name}");
+        $this->branding->applyWatermark($mpdf, $logoPath);
+        $mpdf->WriteHTML($html);
+
+        return response($mpdf->Output('', 'S'))
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', "inline; filename=\"worker-hours-{$user->id}.pdf\"");
+    }
+
+    /**
+     * @return array{daily: array, monthly: array}
+     */
+    private function buildReport(User $worker): array
+    {
+        $dailyLog = $this->report->dailyLogForWorker($worker);
+        $monthlyTotals = $this->report->monthlyTotals($dailyLog);
+
+        $daily = collect($dailyLog)->map(function ($day, $date) {
+            $carbonDate = \Carbon\Carbon::parse($date);
+
+            return [
+                'date' => $date,
+                'date_label' => $carbonDate->format('Y/m/d'),
+                'day_name' => self::DAY_NAMES_AR[$carbonDate->dayOfWeek],
+                'total_hours' => round($day['total_minutes'] / 60, 1),
+                'orders' => collect($day['orders'])->map(fn ($o) => [
+                    'order_number' => $o['order_number'],
+                    'customer_name' => $o['customer_name'],
+                    'hours' => round($o['minutes'] / 60, 1),
+                ])->values(),
+            ];
+        })->sortByDesc('date')->values();
+
+        $monthly = collect($monthlyTotals)->map(function ($minutes, $month) {
+            [$year, $monthNum] = explode('-', $month);
+
+            return [
+                'month' => $month,
+                'label' => self::MONTH_NAMES_AR[(int) $monthNum].' '.$year,
+                'total_hours' => round($minutes / 60, 1),
+            ];
+        })->sortByDesc('month')->values();
+
+        return ['daily' => $daily, 'monthly' => $monthly];
+    }
+}
