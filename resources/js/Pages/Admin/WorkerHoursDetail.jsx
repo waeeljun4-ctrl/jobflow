@@ -1,21 +1,45 @@
 import { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { useConfirm } from '@/Components/useConfirm';
 
 export default function WorkerHoursDetail({ worker, daily, monthly, tasks }) {
+    const { confirmAction, dialog } = useConfirm();
+    const [resetting, setResetting] = useState(false);
+
+    function resetAll() {
+        confirmAction(
+            `تصفير كل ساعات "${worker.name}"؟ رح تنحفظ الساعات الحالية بالأرشيف أول، وبعدين تصفر كل مهامه.`,
+            (cb) => {
+                setResetting(true);
+                router.post(`/admin/worker-hours/${worker.id}/reset-all`, {}, {
+                    ...cb,
+                    onFinish: () => { setResetting(false); cb.onFinish(); },
+                });
+            }
+        );
+    }
+
     return (
         <AdminLayout title={`ساعات عمل ${worker.name}`}>
             <Head title={`ساعات عمل ${worker.name}`} />
+            {dialog}
 
             <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
                 <div>
                     <Link href="/admin/worker-hours" className="text-xs text-muted hover:underline">← كل العمال</Link>
                     <p className="text-lg font-black text-ink mt-1">{worker.name}</p>
                 </div>
-                <a href={`/admin/worker-hours/${worker.id}/print`} target="_blank" rel="noreferrer"
-                    className="bg-ink text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-primary transition-colors">
-                    🖨️ طباعة السجل
-                </a>
+                <div className="flex gap-2">
+                    <button onClick={resetAll} disabled={resetting}
+                        className="bg-red-50 text-red-600 border border-red-200 px-4 py-2 rounded-xl text-sm font-bold hover:bg-red-100 transition-colors disabled:opacity-50">
+                        {resetting ? '⏳...' : '🗑️ تصفير كل الساعات'}
+                    </button>
+                    <a href={`/admin/worker-hours/${worker.id}/print`} target="_blank" rel="noreferrer"
+                        className="bg-ink text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-primary transition-colors">
+                        🖨️ طباعة السجل
+                    </a>
+                </div>
             </div>
 
             {/* Monthly summary */}

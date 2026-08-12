@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\CompanySetting;
 use App\Models\StageInstance;
 use App\Models\User;
+use App\Models\WorkerHourArchive;
 use App\Services\PdfBrandingService;
 use App\Services\WorkHoursReportService;
 use Illuminate\Http\Request;
@@ -110,6 +111,65 @@ class WorkerHoursController extends Controller
         $stageInstance->update(['manual_hours' => $data['manual_hours']]);
 
         return back()->with('success', $data['manual_hours'] === null ? 'تم إرجاع الحساب التلقائي' : 'تم تعديل الساعات');
+    }
+
+    /**
+     * Full reset for one worker: snapshots their current total into
+     * worker_hour_archives (so the history isn't just lost), then zeroes
+     * every one of their tasks by setting manual_hours = 0 on each —
+     * same override mechanism as the single-task edit, just applied in bulk.
+     */
+    public function resetAll(Request $request, User $user)
+    {
+        $instances = StageInstance::where('assigned_to', $user->id)
+            ->whereNotNull('started_at')
+            ->with('pauses')
+            ->get();
+
+        $totalHours = round($instances->sum('elapsed_hours'), 2);
+
+        if ($totalHours > 0) {
+            WorkerHourArchive::create([
+                'user_id' => $user->id,
+                'total_hours' => $totalHours,
+                'archived_by' => $request->user()->id,
+                'archived_at' => now(),
+            ]);
+        }
+
+        StageInstance::where('assigned_to', $user->id)
+            ->whereNotNull('started_at')
+            ->update(['manual_hours' => 0]);
+
+        return back()->with('success', "تم تصفير ساعات {$user->name} — {$totalHours} ساعة انحفظت بالأرشيف");
+    }
+
+    /**
+     * Records left behind by resetAll() above — a worker's hours history
+     * before each full reset, so zeroing the counter never means losing
+     * the record of what was worked.
+     */
+    public function archiveIndex()
+    {
+        return Inertia::render('Admin/WorkerHoursArchive', [
+            'archives' => WorkerHourArchive::with(['worker:id,name', 'archivedByUser:id,name'])
+                ->orderByDesc('archived_at')
+                ->get()
+                ->map(fn (WorkerHourArchive $a) => [
+                    'id' => $a->id,
+                    'worker_name' => $a->worker?->name,
+                    'total_hours' => $a->total_hours,
+                    'archived_by' => $a->archivedByUser?->name,
+                    'archived_at' => $a->archived_at->format('Y-m-d H:i'),
+                ]),
+        ]);
+    }
+
+    public function destroyArchive(WorkerHourArchive $workerHourArchive)
+    {
+        $workerHourArchive->delete();
+
+        return back()->with('success', 'تم حذف السجل من الأرشيف');
     }
 
     public function print(User $user)

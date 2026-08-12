@@ -87,6 +87,9 @@ Route::middleware(['auth', 'permission:page.worker_hours'])->prefix('admin')->na
     Route::get('/worker-hours/{user}', [WorkerHoursController::class, 'show'])->name('workerHours.show');
     Route::get('/worker-hours/{user}/print', [WorkerHoursController::class, 'print'])->name('workerHours.print');
     Route::patch('/worker-hours/tasks/{stageInstance}', [WorkerHoursController::class, 'updateHours'])->name('workerHours.updateHours');
+    Route::post('/worker-hours/{user}/reset-all', [WorkerHoursController::class, 'resetAll'])->name('workerHours.resetAll');
+    Route::get('/worker-hours-archive', [WorkerHoursController::class, 'archiveIndex'])->name('workerHours.archive');
+    Route::delete('/worker-hours-archive/{workerHourArchive}', [WorkerHoursController::class, 'destroyArchive'])->name('workerHours.destroyArchive');
 });
 
 Route::middleware(['auth', 'permission:page.stages'])->prefix('admin')->name('admin.')->group(function () {
