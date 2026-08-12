@@ -9,6 +9,7 @@ use App\Models\StageInstance;
 use App\Models\User;
 use App\Services\PdfBrandingService;
 use App\Services\WorkHoursReportService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
@@ -67,7 +68,48 @@ class WorkerHoursController extends Controller
         return Inertia::render('Admin/WorkerHoursDetail', [
             'worker' => $user->only('id', 'name'),
             ...$this->buildReport($user),
+            'tasks' => $this->buildTaskList($user),
         ]);
+    }
+
+    /**
+     * Raw per-task list (not the day/order rollup used by the report above)
+     * — this is what lets the admin find and correct one specific task,
+     * e.g. one a worker forgot to close and that's been silently racking
+     * up hours ever since.
+     */
+    private function buildTaskList(User $worker): array
+    {
+        return StageInstance::where('assigned_to', $worker->id)
+            ->whereNotNull('started_at')
+            ->with(['order:id,order_number,customer_name', 'stageDefinition:id,name_ar'])
+            ->orderByDesc('started_at')
+            ->get()
+            ->filter(fn (StageInstance $i) => $i->order)
+            ->map(fn (StageInstance $i) => [
+                'id' => $i->id,
+                'order_number' => $i->order->order_number,
+                'customer_name' => $i->order->customer_name,
+                'stage_name' => $i->stageDefinition?->name_ar,
+                'started_at' => $i->started_at->format('Y-m-d H:i'),
+                'completed_at' => $i->completed_at?->format('Y-m-d H:i'),
+                'is_running' => $i->completed_at === null,
+                'elapsed_hours' => $i->elapsed_hours,
+                'manual_hours' => $i->manual_hours,
+            ])
+            ->values()
+            ->all();
+    }
+
+    public function updateHours(Request $request, StageInstance $stageInstance)
+    {
+        $data = $request->validate([
+            'manual_hours' => 'nullable|numeric|min:0|max:999',
+        ]);
+
+        $stageInstance->update(['manual_hours' => $data['manual_hours']]);
+
+        return back()->with('success', $data['manual_hours'] === null ? 'تم إرجاع الحساب التلقائي' : 'تم تعديل الساعات');
     }
 
     public function print(User $user)

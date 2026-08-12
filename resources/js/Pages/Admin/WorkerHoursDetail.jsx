@@ -1,7 +1,8 @@
-import { Head, Link } from '@inertiajs/react';
+import { useState } from 'react';
+import { Head, Link, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 
-export default function WorkerHoursDetail({ worker, daily, monthly }) {
+export default function WorkerHoursDetail({ worker, daily, monthly, tasks }) {
     return (
         <AdminLayout title={`ساعات عمل ${worker.name}`}>
             <Head title={`ساعات عمل ${worker.name}`} />
@@ -77,6 +78,93 @@ export default function WorkerHoursDetail({ worker, daily, monthly }) {
                     </tbody>
                 </table>
             </div>
+
+            {/* Raw task list — for correcting one specific task's hours,
+                e.g. one a worker forgot to close and kept counting since. */}
+            <div className="bg-white rounded-2xl border border-cream-3 overflow-hidden mt-6">
+                <p className="px-5 py-3 border-b border-cream-3 font-bold text-sm text-ink">المهام (تعديل الساعات يدوياً)</p>
+                <table className="w-full text-sm">
+                    <thead>
+                        <tr className="text-right text-muted text-xs uppercase">
+                            <th className="px-5 py-2">الطلبية</th>
+                            <th className="px-5 py-2">المرحلة</th>
+                            <th className="px-5 py-2">البداية</th>
+                            <th className="px-5 py-2">النهاية</th>
+                            <th className="px-5 py-2">الساعات</th>
+                            <th className="px-5 py-2"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {(tasks ?? []).map(task => (
+                            <TaskRow key={task.id} task={task} />
+                        ))}
+                        {(tasks ?? []).length === 0 && (
+                            <tr><td colSpan={6} className="px-5 py-6 text-center text-muted">لا يوجد مهام</td></tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
         </AdminLayout>
+    );
+}
+
+function TaskRow({ task }) {
+    const [editing, setEditing] = useState(false);
+    const [value, setValue] = useState(task.manual_hours ?? task.elapsed_hours ?? 0);
+    const [saving, setSaving] = useState(false);
+
+    function save() {
+        setSaving(true);
+        router.patch(`/admin/worker-hours/tasks/${task.id}`, { manual_hours: value }, {
+            preserveScroll: true,
+            onFinish: () => { setSaving(false); setEditing(false); },
+        });
+    }
+
+    function resetToAuto() {
+        setSaving(true);
+        router.patch(`/admin/worker-hours/tasks/${task.id}`, { manual_hours: null }, {
+            preserveScroll: true,
+            onFinish: () => { setSaving(false); setEditing(false); },
+        });
+    }
+
+    return (
+        <tr className="border-t border-cream-3">
+            <td className="px-5 py-3 font-bold text-ink">{task.order_number}<span className="text-muted font-normal"> — {task.customer_name}</span></td>
+            <td className="px-5 py-3 text-muted">{task.stage_name}</td>
+            <td className="px-5 py-3 text-muted text-xs">{task.started_at}</td>
+            <td className="px-5 py-3 text-xs">
+                {task.is_running
+                    ? <span className="text-orange-500 font-bold">لسا شغالة</span>
+                    : <span className="text-muted">{task.completed_at}</span>}
+            </td>
+            <td className="px-5 py-3">
+                {editing ? (
+                    <input type="number" min="0" step="0.1" value={value} onChange={e => setValue(e.target.value)}
+                        className="w-20 px-2 py-1 border-2 border-cream-3 rounded-lg text-sm focus:border-primary outline-none" />
+                ) : (
+                    <span className="font-black text-primary">
+                        {task.elapsed_hours} ساعة
+                        {task.manual_hours !== null && <span className="text-[10px] text-orange-500 font-bold mr-1">(معدّلة)</span>}
+                    </span>
+                )}
+            </td>
+            <td className="px-5 py-3 text-left">
+                {editing ? (
+                    <div className="flex gap-1.5 justify-end">
+                        <button onClick={save} disabled={saving} className="text-xs font-bold text-green-600 hover:underline disabled:opacity-50">حفظ</button>
+                        <button onClick={() => setEditing(false)} disabled={saving} className="text-xs text-muted hover:underline">إلغاء</button>
+                    </div>
+                ) : (
+                    <div className="flex gap-2.5 justify-end">
+                        <button onClick={() => setEditing(true)} className="text-xs font-bold text-primary hover:underline">✏️ تعديل</button>
+                        {task.manual_hours !== null && (
+                            <button onClick={resetToAuto} disabled={saving} className="text-xs text-muted hover:underline disabled:opacity-50">إرجاع تلقائي</button>
+                        )}
+                    </div>
+                )}
+            </td>
+        </tr>
     );
 }

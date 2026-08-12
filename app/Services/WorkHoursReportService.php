@@ -90,6 +90,15 @@ class WorkHoursReportService
             return [];
         }
 
+        // Admin override — attribute the whole corrected total to the day
+        // the task started, instead of walking raw timestamps that are
+        // exactly what's wrong (that's why an override was set).
+        if ($instance->manual_hours !== null) {
+            $minutes = (int) round($instance->manual_hours * 60);
+
+            return $minutes > 0 ? [$instance->started_at->toDateString() => $minutes] : [];
+        }
+
         $start = $instance->started_at;
         $end = $instance->completed_at ?? now();
 

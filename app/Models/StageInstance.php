@@ -11,7 +11,7 @@ class StageInstance extends Model
 {
     protected $fillable = [
         'order_id', 'stage_definition_id', 'status', 'queue_order', 'assigned_to',
-        'started_at', 'completed_at', 'completed_by', 'notes',
+        'started_at', 'completed_at', 'completed_by', 'notes', 'manual_hours',
     ];
 
     protected $appends = ['elapsed_hours', 'last_send_back_reason', 'current_pause'];
@@ -21,6 +21,7 @@ class StageInstance extends Model
         return [
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
+            'manual_hours' => 'float',
         ];
     }
 
@@ -34,6 +35,13 @@ class StageInstance extends Model
     {
         return Attribute::make(
             get: function () {
+                // Admin override (e.g. a task the worker forgot to close, so
+                // elapsed time kept counting) replaces the computed value
+                // entirely, rather than trying to fix up started_at/completed_at.
+                if ($this->manual_hours !== null) {
+                    return (float) $this->manual_hours;
+                }
+
                 if (! $this->started_at) {
                     return null;
                 }

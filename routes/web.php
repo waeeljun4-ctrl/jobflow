@@ -86,6 +86,7 @@ Route::middleware(['auth', 'permission:page.worker_hours'])->prefix('admin')->na
     Route::get('/worker-hours', [WorkerHoursController::class, 'index'])->name('workerHours.index');
     Route::get('/worker-hours/{user}', [WorkerHoursController::class, 'show'])->name('workerHours.show');
     Route::get('/worker-hours/{user}/print', [WorkerHoursController::class, 'print'])->name('workerHours.print');
+    Route::patch('/worker-hours/tasks/{stageInstance}', [WorkerHoursController::class, 'updateHours'])->name('workerHours.updateHours');
 });
 
 Route::middleware(['auth', 'permission:page.stages'])->prefix('admin')->name('admin.')->group(function () {
